@@ -1,0 +1,89 @@
+'use client';
+
+import { useState, useEffect, useMemo } from 'react';
+import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
+import type { Listing } from '@/lib/types';
+import { PropertyCard } from './property-card';
+import { PropertyFilters } from './property-filters';
+import { Skeleton } from '../ui/skeleton';
+
+export function PropertyListings() {
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState({
+    location: '',
+    type: 'all',
+    priceRange: [0, 5000],
+  });
+
+  useEffect(() => {
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const q = query(
+      collection(db, 'listings'),
+      where('status', 'in', ['approved', 'sold']),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const listingsData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      } as Listing))
+      .filter(listing => {
+        // Remove sold listings after 24 hours
+        if (listing.status === 'sold' && listing.soldAt) {
+          return listing.soldAt.toDate() > twentyFourHoursAgo;
+        }
+        return true;
+      });
+      
+      setListings(listingsData);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const filteredListings = useMemo(() => {
+    return listings.filter((listing) => {
+      const { location, type, priceRange } = filters;
+      return (
+        (location === '' || listing.location.toLowerCase().includes(location.toLowerCase())) &&
+        (type === 'all' || listing.type === type) &&
+        (listing.price >= priceRange[0] && listing.price <= priceRange[1])
+      );
+    });
+  }, [listings, filters]);
+
+  return (
+    <div id="listings" className="container mx-auto px-4 py-12">
+      <PropertyFilters onFilterChange={setFilters} />
+      {loading ? (
+        <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="space-y-4">
+              <Skeleton className="h-64 w-full" />
+              <div className="space-y-2">
+                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-4 w-1/4" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filteredListings.length > 0 ? (
+        <div className="mt-8 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {filteredListings.map((listing) => (
+            <PropertyCard key={listing.id} listing={listing} />
+          ))}
+        </div>
+      ) : (
+        <div className="mt-8 text-center text-muted-foreground">
+          <p>No properties match your criteria. Try adjusting your filters.</p>
+        </div>
+      )}
+    </div>
+  );
+}

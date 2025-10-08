@@ -1,3 +1,52 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "modern-apartment",
+      "description": "A modern apartment with a city view.",
+      "imageUrl": "https://picsum.photos/seed/1/800/600",
+      "imageHint": "modern apartment"
+    },
+    {
+      "id": "cozy-house",
+      "description": "A cozy house in the suburbs.",
+      "imageUrl": "https://picsum.photos/seed/2/800/600",
+      "imageHint": "cozy house"
+    },
+    {
+      "id": "luxury-villa",
+      "description": "A luxury villa with a pool.",
+      "imageUrl": "https://picsum.photos/seed/3/800/600",
+      "imageHint": "luxury villa"
+    },
+    {
+      "id": "downtown-loft",
+      "description": "A stylish loft in the downtown area.",
+      "imageUrl": "https://picsum.photos/seed/4/800/600",
+      "imageHint": "downtown loft"
+    },
+    {
+      "id": "shared-room",
+      "description": "A shared room in a friendly neighborhood.",
+      "imageUrl": "https://picsum.photos/seed/5/800/600",
+      "imageHint": "shared room"
+    },
+    {
+      "id": "beachfront-bungalow",
+      "description": "A beautiful bungalow on the beach.",
+      "imageUrl": "https://picsum.photos/seed/6/800/600",
+      "imageHint": "beachfront bungalow"
+    },
+    {
+      "id": "suburban-home",
+      "description": "A charming suburban home with a garden.",
+      "imageUrl": "https://picsum.photos/seed/7/800/600",
+      "imageHint": "suburban home"
+    },
+    {
+      "id": "penthouse-view",
+      "description": "A penthouse with stunning city views.",
+      "imageUrl": "https://picsum.photos/seed/8/800/600",
+      "imageHint": "penthouse view"
+    }
+  ]
 }
