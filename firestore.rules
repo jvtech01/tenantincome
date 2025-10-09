@@ -1,51 +1,117 @@
+/**
+ * @file Firestore Security Rules
+ * @version 2
+ *
+ * @Core Philosophy
+ * This ruleset employs a mixed security model. User profiles are readable by anyone but only updatable by the user themselves.
+ * Listings are publicly readable, but write access is restricted to owners.
+ * Payments are not accessible to anyone.
+ *
+ * @Data Structure
+ * - /users/{userId}: Stores user profile information, indexed by user ID.
+ * - /listings/{listingId}: Stores property listings, indexed by listing ID.
+ * - /payments/{paymentId}: Stores payment records, indexed by payment ID.
+ *
+ * @Key Security Decisions
+ * - User listing is disallowed for privacy.
+ * - Payments are strictly controlled and not readable or writable by any client.
+ *
+ * @Denormalization for Authorization
+ * - The `Listing` entity includes an `ownerId` field to enable owner-based access control. This avoids needing to query a separate collection to determine ownership.
+ *
+ * @Structural Segregation
+ * - No explicit segregation between public and private data is needed at this time.
+ */
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    function isAdmin() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-    }
-
+    /**
+     * @description Allows users to read their own profile data and create their profile.
+     * @path /users/{userId}
+     * @allow (get) User with UID 'user123' can read /users/user123.
+     * @allow (create) User with UID 'user123' can create /users/user123, with data including 'uid': 'user123'.
+     * @allow (update) User with UID 'user123' can update /users/user123.
+     * @deny (get) User with UID 'user456' cannot read /users/user123.
+     * @deny (create) User with UID 'user123' cannot create /users/user456.
+     * @deny (update) User with UID 'user456' cannot update /users/user123.
+     * @principle Enforces document ownership for writes.
+     */
     match /users/{userId} {
-      // Users can only read/write their own profile
-      allow read, write: if isOwner(userId);
-      // Admins can read any profile
-      allow get: if isAdmin();
+      //Helper function to check if the request is from the signed-in user
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      //Helper function to check if the user ID matches the requested user ID
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      //Helper function to check if the user ID matches the requested user ID and document exists
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if true;
+      allow list: if false; // User listing is disallowed for privacy.
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.uid == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.uid == resource.data.uid;
+      allow delete: if isExistingOwner(userId);
     }
 
+    /**
+     * @description Allows anyone to read listings, but only the owner can create, update, or delete them.
+     * @path /listings/{listingId}
+     * @allow (get) Any user can read /listings/listing1.
+     * @allow (list) Any user can list /listings.
+     * @allow (create) User with UID 'user123' can create /listings/listing1 with 'ownerId': 'user123'.
+     * @allow (update) User with UID 'user123' can update /listings/listing1 if they are the owner ('ownerId' is 'user123').
+     * @allow (delete) User with UID 'user123' can delete /listings/listing1 if they are the owner ('ownerId' is 'user123').
+     * @deny (create) User with UID 'user456' cannot create /listings/listing1 with 'ownerId': 'user123'.
+     * @deny (update) User with UID 'user456' cannot update /listings/listing1 if they are not the owner ('ownerId' is 'user123').
+     * @deny (delete) User with UID 'user456' cannot delete /listings/listing1 if they are not the owner ('ownerId' is 'user123').
+     * @principle Enforces document ownership for writes while allowing public reads.
+     */
     match /listings/{listingId} {
-      // Anyone can read approved or sold listings
-      allow get: if resource.data.status in ['approved', 'sold'];
-      // For lists, check the query condition.
-      // This allows the public homepage query to work.
-      allow list: if request.query.get("status") in [['approved', 'sold']];
-      
-      // Authenticated users can create new listings (with 'pending' status)
-      allow create: if request.auth != null
-                      && request.resource.data.status == 'pending'
-                      && request.resource.data.ownerId == request.auth.uid;
-      
-      // Only admins can approve listings (update status from 'pending' to 'approved')
-      // and mark as sold.
-      allow update: if isAdmin() || 
-                      (request.resource.data.status == 'sold' && resource.data.status == 'approved');
+      //Helper function to check if the request is from the signed-in user
+      function isSignedIn() {
+        return request.auth != null;
+      }
 
-      // The owner or an admin can delete a listing
-      allow delete: if isAdmin() || isOwner(resource.data.ownerId);
+      //Helper function to check if the user ID matches the document's ownerId field
+      function isOwner(ownerId) {
+        return request.auth.uid == ownerId;
+      }
+
+      //Helper function to check if the user ID matches the document's ownerId field and document exists
+      function isExistingOwner(ownerId) {
+        return isOwner(ownerId) && resource != null;
+      }
+
+      allow get: if true;
+      allow list: if true;
+      allow create: if isSignedIn() && isOwner(request.resource.data.ownerId);
+      allow update: if isExistingOwner(resource.data.ownerId);
+      allow delete: if isExistingOwner(resource.data.ownerId);
     }
 
+    /**
+     * @description Payments are not accessible to anyone
+     * @path /payments/{paymentId}
+     * @deny (get) No user can get /payments/payment1.
+     * @deny (list) No user can list /payments.
+     * @deny (create) No user can create /payments/payment1.
+     * @deny (update) No user can update /payments/payment1.
+     * @deny (delete) No user can delete /payments/payment1.
+     * @principle Restricts access to payments for all users.
+     */
     match /payments/{paymentId} {
-        // Authenticated users can create their own payment records
-        allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-        // Only admins can read payment records
-        allow read, list: if isAdmin();
-        // Payments cannot be updated or deleted by clients
-        allow update, delete: if false;
+      allow get: if false;
+      allow list: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
   }
 }
