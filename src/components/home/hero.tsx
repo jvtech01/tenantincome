@@ -26,7 +26,7 @@ export function Hero() {
         </div>
         <div className="relative h-64 w-full lg:h-auto lg:aspect-[4/3]">
            <Image
-              src="https://picsum.photos/seed/hero/800/600"
+              src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop"
               alt="Modern house"
               fill
               className="rounded-lg object-cover shadow-lg"
