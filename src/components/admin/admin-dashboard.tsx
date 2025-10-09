@@ -105,10 +105,12 @@ export function AdminDashboard() {
             throw error;
         });
       
-      // Delete image from Storage
-      if (listing.imageUrl) {
-        const imageRef = ref(storage, listing.imageUrl);
-        await deleteObject(imageRef);
+      // Delete images from Storage
+      if (listing.imageUrls && listing.imageUrls.length > 0) {
+        await Promise.all(listing.imageUrls.map(url => {
+          const imageRef = ref(storage, url);
+          return deleteObject(imageRef);
+        }));
       }
 
       toast({ title: 'Success', description: 'Listing deleted.' });
@@ -142,7 +144,7 @@ export function AdminDashboard() {
             pendingListings.map((listing) => (
               <TableRow key={listing.id}>
                 <TableCell>
-                    <Image src={listing.imageUrl} alt={listing.title} width={80} height={60} className="rounded-md object-cover"/>
+                    <Image src={listing.imageUrls[0]} alt={listing.title} width={80} height={60} className="rounded-md object-cover"/>
                 </TableCell>
                 <TableCell className="font-medium">{listing.title}</TableCell>
                 <TableCell>{listing.location}</TableCell>

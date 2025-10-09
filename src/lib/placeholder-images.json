@@ -2,143 +2,183 @@
   "placeholderImages": [
     {
       "id": "modern-apartment-lekki",
-      "description": "A modern 3-bedroom apartment in Lekki Phase 1, Lagos.",
-      "imageUrl": "https://picsum.photos/seed/1/800/600",
-      "imageHint": "modern apartment lagos",
-      "price": 3500000
+      "description": "A modern 3-bedroom apartment in Lekki Phase 1, Lagos. Well-furnished with 24/7 power and water.",
+      "address": "12B Fola Osibo Rd, Lekki Phase 1, Lagos",
+      "imageUrls": ["https://picsum.photos/seed/1/800/600", "https://picsum.photos/seed/101/800/600", "https://picsum.photos/seed/102/800/600"],
+      "imageHint": "modern apartment interior",
+      "price": 3500000,
+      "facilities": ["24/7 Light", "Constant Water", "Good Roads", "Shoprite Mall"]
     },
     {
       "id": "cozy-house-abuja",
-      "description": "A cozy 4-bedroom duplex in a serene neighborhood in Asokoro, Abuja.",
-      "imageUrl": "https://picsum.photos/seed/2/800/600",
-      "imageHint": "cozy house abuja",
-      "price": 5000000
+      "description": "A cozy 4-bedroom duplex in a serene neighborhood in Asokoro, Abuja. Comes with a garden and ample parking.",
+      "address": "25 Yakubu Gowon Cres, Asokoro, Abuja",
+      "imageUrls": ["https://picsum.photos/seed/2/800/600", "https://picsum.photos/seed/103/800/600", "https://picsum.photos/seed/104/800/600"],
+      "imageHint": "cozy house interior",
+      "price": 5000000,
+      "facilities": ["24/7 Light", "Borehole Water", "Paved Roads", "Aso Rock"]
     },
     {
       "id": "luxury-villa-ikoyi",
-      "description": "A luxury 5-bedroom villa with a private pool in Ikoyi, Lagos.",
-      "imageUrl": "https://picsum.photos/seed/3/800/600",
-      "imageHint": "luxury villa lagos",
-      "price": 8000000
+      "description": "A luxury 5-bedroom villa with a private pool in Ikoyi, Lagos. Top-notch security and premium fittings.",
+      "address": "33 Banana Island Rd, Ikoyi, Lagos",
+      "imageUrls": ["https://picsum.photos/seed/3/800/600", "https://picsum.photos/seed/105/800/600", "https://picsum.photos/seed/106/800/600"],
+      "imageHint": "luxury villa interior",
+      "price": 8000000,
+      "facilities": ["24/7 Light", "Treated Water", "Excellent Roads", "Ikoyi Golf Club"]
     },
     {
       "id": "downtown-loft-vi",
-      "description": "A stylish 2-bedroom loft in the heart of Victoria Island, Lagos.",
-      "imageUrl": "https://picsum.photos/seed/4/800/600",
-      "imageHint": "downtown loft lagos",
-      "price": 4000000
+      "description": "A stylish 2-bedroom loft in the heart of Victoria Island, Lagos. Perfect for young professionals.",
+      "address": "100 Adetokunbo Ademola Street, Victoria Island, Lagos",
+      "imageUrls": ["https://picsum.photos/seed/4/800/600", "https://picsum.photos/seed/107/800/600", "https://picsum.photos/seed/108/800/600"],
+      "imageHint": "downtown loft interior",
+      "price": 4000000,
+      "facilities": ["Inverter Power", "Public Water", "Good Roads", "Eko Hotel"]
     },
     {
       "id": "shared-room-yaba",
-      "description": "A shared room in a vibrant student area in Yaba, Lagos.",
-      "imageUrl": "https://picsum.photos/seed/5/800/600",
-      "imageHint": "shared room lagos",
-      "price": 250000
+      "description": "A shared room in a vibrant student area in Yaba, Lagos. Close to the university.",
+      "address": "58 Herbert Macaulay Way, Yaba, Lagos",
+      "imageUrls": ["https://picsum.photos/seed/5/800/600", "https://picsum.photos/seed/109/800/600", "https://picsum.photos/seed/110/800/600"],
+      "imageHint": "student room interior",
+      "price": 250000,
+      "facilities": ["Generator", "Well Water", "Okay Roads", "Unilag Campus"]
     },
     {
       "id": "beachfront-bungalow-elegushi",
-      "description": "A beautiful 3-bedroom bungalow on Elegushi Beach, Lagos.",
-      "imageUrl": "https://picsum.photos/seed/6/800/600",
-      "imageHint": "beachfront bungalow lagos",
-      "price": 2800000
+      "description": "A beautiful 3-bedroom bungalow on Elegushi Beach, Lagos. Enjoy the ocean breeze.",
+      "address": "Elegushi Royal Beach, Lekki, Lagos",
+      "imageUrls": ["https://picsum.photos/seed/6/800/600", "https://picsum.photos/seed/111/800/600", "https://picsum.photos/seed/112/800/600"],
+      "imageHint": "beachfront bungalow interior",
+      "price": 2800000,
+      "facilities": ["Solar Power", "Constant Water", "Sandy Roads", "Nike Art Gallery"]
     },
     {
       "id": "suburban-home-ikeja",
-      "description": "A charming 4-bedroom suburban home with a garden in Ikeja GRA, Lagos.",
-      "imageUrl": "https://picsum.photos/seed/7/800/600",
-      "imageHint": "suburban home lagos",
-      "price": 3200000
+      "description": "A charming 4-bedroom suburban home with a garden in Ikeja GRA, Lagos. Family-friendly environment.",
+      "address": "21 Isaac John Street, Ikeja GRA, Lagos",
+      "imageUrls": ["https://picsum.photos/seed/7/800/600", "https://picsum.photos/seed/113/800/600", "https://picsum.photos/seed/114/800/600"],
+      "imageHint": "suburban home interior",
+      "price": 3200000,
+      "facilities": ["24/7 Light", "Constant Water", "Good Roads", "Ikeja City Mall"]
     },
     {
       "id": "penthouse-view-eko-atlantic",
-      "description": "A 3-bedroom penthouse with stunning views of Eko Atlantic, Lagos.",
-      "imageUrl": "https://picsum.photos/seed/8/800/600",
-      "imageHint": "penthouse view lagos",
-      "price": 9500000
+      "description": "A 3-bedroom penthouse with stunning views of Eko Atlantic, Lagos. Ultimate luxury living.",
+      "address": "Eko Pearl Towers, Eko Atlantic, Lagos",
+      "imageUrls": ["https://picsum.photos/seed/8/800/600", "https://picsum.photos/seed/115/800/600", "https://picsum.photos/seed/116/800/600"],
+      "imageHint": "penthouse view interior",
+      "price": 9500000,
+      "facilities": ["24/7 Light", "Treated Water", "Excellent Roads", "Eko Atlantic City"]
     },
     {
       "id": "serviced-apartment-ph",
-      "description": "A well-serviced 2-bedroom apartment in Port Harcourt GRA.",
-      "imageUrl": "https://picsum.photos/seed/9/800/600",
-      "imageHint": "serviced apartment port harcourt",
-      "price": 2000000
+      "description": "A well-serviced 2-bedroom apartment in Port Harcourt GRA. Secure and comfortable.",
+      "address": "12 Olu Obasanjo Road, GRA Phase 2, Port Harcourt",
+      "imageUrls": ["https://picsum.photos/seed/9/800/600", "https://picsum.photos/seed/117/800/600", "https://picsum.photos/seed/118/800/600"],
+      "imageHint": "serviced apartment interior",
+      "price": 2000000,
+      "facilities": ["24/7 Light", "Borehole Water", "Good Roads", "Port Harcourt Mall"]
     },
     {
       "id": "terraced-house-gwarinpa",
-      "description": "A modern 4-bedroom terraced house in Gwarinpa, Abuja.",
-      "imageUrl": "https://picsum.photos/seed/10/800/600",
-      "imageHint": "terraced house abuja",
-      "price": 4500000
+      "description": "A modern 4-bedroom terraced house in Gwarinpa, Abuja. Spacious and elegant.",
+      "address": "5th Avenue, Gwarinpa, Abuja",
+      "imageUrls": ["https://picsum.photos/seed/10/800/600", "https://picsum.photos/seed/119/800/600", "https://picsum.photos/seed/120/800/600"],
+      "imageHint": "terraced house interior",
+      "price": 4500000,
+      "facilities": ["Good Light", "Borehole Water", "Paved Roads", "Next Cash and Carry"]
     },
     {
       "id": "maisonette-lekki",
-      "description": "A spacious 4-bedroom maisonette in Lekki Phase 1.",
-      "imageUrl": "https://picsum.photos/seed/11/800/600",
-      "imageHint": "maisonette lagos",
-      "price": 4800000
+      "description": "A spacious 4-bedroom maisonette in Lekki Phase 1. Features a BQ and modern amenities.",
+      "address": "2 Admiralty Way, Lekki Phase 1, Lagos",
+      "imageUrls": ["https://picsum.photos/seed/11/800/600", "https://picsum.photos/seed/121/800/600", "https://picsum.photos/seed/122/800/600"],
+      "imageHint": "maisonette interior",
+      "price": 4800000,
+      "facilities": ["24/7 Light", "Treated Water", "Good Roads", "The Palms Mall"]
     },
     {
       "id": "bungalow-ibadan",
-      "description": "A quiet 3-bedroom bungalow in a residential area of Bodija, Ibadan.",
-      "imageUrl": "https://picsum.photos/seed/12/800/600",
-      "imageHint": "bungalow ibadan",
-      "price": 800000
+      "description": "A quiet 3-bedroom bungalow in a residential area of Bodija, Ibadan. Large compound.",
+      "address": "15 Awolowo Avenue, Old Bodija, Ibadan",
+      "imageUrls": ["https://picsum.photos/seed/12/800/600", "https://picsum.photos/seed/123/800/600", "https://picsum.photos/seed/124/800/600"],
+      "imageHint": "bungalow interior",
+      "price": 800000,
+      "facilities": ["Good Light", "Well Water", "Good Roads", "Ventura Mall"]
     },
     {
       "id": "apartment-kano",
-      "description": "A modern 3-bedroom apartment in Nassarawa GRA, Kano.",
-      "imageUrl": "https://picsum.photos/seed/13/800/600",
-      "imageHint": "modern apartment kano",
-      "price": 1200000
+      "description": "A modern 3-bedroom apartment in Nassarawa GRA, Kano. Clean and secure environment.",
+      "address": "10 Sultan Road, Nassarawa GRA, Kano",
+      "imageUrls": ["https://picsum.photos/seed/13/800/600", "https://picsum.photos/seed/125/800/600", "https://picsum.photos/seed/126/800/600"],
+      "imageHint": "modern apartment interior kano",
+      "price": 1200000,
+      "facilities": ["Generator", "Borehole Water", "Paved Roads", "Ado Bayero Mall"]
     },
     {
       "id": "house-enugu",
-      "description": "A 5-bedroom detached house in Independence Layout, Enugu.",
-      "imageUrl": "https://picsum.photos/seed/14/800/600",
-      "imageHint": "detached house enugu",
-      "price": 2500000
+      "description": "A 5-bedroom detached house in Independence Layout, Enugu. Ideal for a large family.",
+      "address": "5 Presidential Road, Independence Layout, Enugu",
+      "imageUrls": ["https://picsum.photos/seed/14/800/600", "https://picsum.photos/seed/127/800/600", "https://picsum.photos/seed/128/800/600"],
+      "imageHint": "detached house interior",
+      "price": 2500000,
+      "facilities": ["Good Light", "Constant Water", "Good Roads", "Polo Park Mall"]
     },
     {
       "id": "shared-apartment-calabar",
-      "description": "A shared 2-bedroom apartment near the University of Calabar.",
-      "imageUrl": "https://picsum.photos/seed/15/800/600",
-      "imageHint": "shared apartment calabar",
-      "price": 150000
+      "description": "A shared 2-bedroom apartment near the University of Calabar. Fully furnished.",
+      "address": "1 University of Calabar Road, Calabar",
+      "imageUrls": ["https://picsum.photos/seed/15/800/600", "https://picsum.photos/seed/129/800/600", "https://picsum.photos/seed/130/800/600"],
+      "imageHint": "shared apartment interior",
+      "price": 150000,
+      "facilities": ["Generator", "Public Water", "Okay Roads", "UNICAL"]
     },
     {
       "id": "villa-jos",
-      "description": "A beautiful 4-bedroom villa with a scenic view in Rayfield, Jos.",
-      "imageUrl": "https://picsum.photos/seed/16/800/600",
-      "imageHint": "scenic villa jos",
-      "price": 1800000
+      "description": "A beautiful 4-bedroom villa with a scenic view in Rayfield, Jos. Peaceful and serene.",
+      "address": "1 Rayfield Resort Road, Jos",
+      "imageUrls": ["https://picsum.photos/seed/16/800/600", "https://picsum.photos/seed/131/800/600", "https://picsum.photos/seed/132/800/600"],
+      "imageHint": "scenic villa interior",
+      "price": 1800000,
+      "facilities": ["Good Light", "Borehole Water", "Good Roads", "Jos Wildlife Park"]
     },
     {
       "id": "apartment-kaduna",
-      "description": "A neat 2-bedroom apartment in Ungwan Rimi GRA, Kaduna.",
-      "imageUrl": "https://picsum.photos/seed/17/800/600",
-      "imageHint": "apartment kaduna",
-      "price": 900000
+      "description": "A neat 2-bedroom apartment in Ungwan Rimi GRA, Kaduna. Gated and secure.",
+      "address": "7 Aliyu Makama Road, Ungwan Rimi GRA, Kaduna",
+      "imageUrls": ["https://picsum.photos/seed/17/800/600", "https://picsum.photos/seed/133/800/600", "https://picsum.photos/seed/134/800/600"],
+      "imageHint": "apartment interior kaduna",
+      "price": 900000,
+      "facilities": ["Generator", "Borehole Water", "Paved Roads", "Kaduna Golf Club"]
     },
     {
       "id": "duplex-owerri",
-      "description": "A brand new 4-bedroom semi-detached duplex in Owerri.",
-      "imageUrl": "https://picsum.photos/seed/18/800/600",
-      "imageHint": "new duplex owerri",
-      "price": 2200000
+      "description": "A brand new 4-bedroom semi-detached duplex in Owerri. Modern architecture.",
+      "address": "10 Concorde Avenue, New Owerri, Owerri",
+      "imageUrls": ["https://picsum.photos/seed/18/800/600", "https://picsum.photos/seed/135/800/600", "https://picsum.photos/seed/136/800/600"],
+      "imageHint": "new duplex interior",
+      "price": 2200000,
+      "facilities": ["Good Light", "Borehole Water", "Paved Roads", "Shoprite Owerri"]
     },
     {
       "id": "house-benin",
-      "description": "A 3-bedroom house with a large compound in GRA, Benin City.",
-      "imageUrl": "https://picsum.photos/seed/19/800/600",
-      "imageHint": "house benin city",
-      "price": 1000000
+      "description": "A 3-bedroom house with a large compound in GRA, Benin City. Ample space for events.",
+      "address": "8 Reservation Road, GRA, Benin City",
+      "imageUrls": ["https://picsum.photos/seed/19/800/600", "https://picsum.photos/seed/137/800/600", "https://picsum.photos/seed/138/800/600"],
+      "imageHint": "large house interior",
+      "price": 1000000,
+      "facilities": ["Good Light", "Well Water", "Good Roads", "Benin City National Museum"]
     },
     {
       "id": "apartment-surulere",
-      "description": "A renovated 2-bedroom flat in Surulere, Lagos.",
-      "imageUrl": "https://picsum.photos/seed/20/800/600",
-      "imageHint": "renovated apartment lagos",
-      "price": 1500000
+      "description": "A renovated 2-bedroom flat in Surulere, Lagos. Central and accessible location.",
+      "address": "45 Adelabu Street, Surulere, Lagos",
+      "imageUrls": ["https://picsum.photos/seed/20/800/600", "https://picsum.photos/seed/139/800/600", "https://picsum.photos/seed/140/800/600"],
+      "imageHint": "renovated apartment interior",
+      "price": 1500000,
+      "facilities": ["Generator", "Public Water", "Good Roads", "National Stadium"]
     }
   ]
 }

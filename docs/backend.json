@@ -21,16 +21,18 @@
         "title": { "type": "string" },
         "description": { "type": "string" },
         "location": { "type": "string" },
+        "address": { "type": "string" },
         "type": { "type": "string", "enum": ["Apartment", "Shared", "House", "Villa"] },
         "price": { "type": "number" },
-        "imageUrl": { "type": "string", "format": "uri" },
+        "imageUrls": { "type": "array", "items": { "type": "string", "format": "uri" } },
         "imageHint": { "type": "string" },
+        "facilities": { "type": "array", "items": { "type": "string" } },
         "ownerId": { "type": "string", "description": "UID of the user who owns the listing." },
         "status": { "type": "string", "enum": ["pending", "approved", "sold"] },
         "createdAt": { "type": "string", "format": "date-time" },
         "soldAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["title", "location", "type", "price", "imageUrl", "ownerId", "status", "createdAt"]
+      "required": ["title", "location", "address", "type", "price", "imageUrls", "ownerId", "status", "createdAt"]
     },
     "Payment": {
       "title": "Payment Record",

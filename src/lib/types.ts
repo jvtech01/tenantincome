@@ -13,10 +13,12 @@ export type Listing = {
   title: string;
   description: string;
   location: string;
+  address: string;
   type: 'Apartment' | 'Shared' | 'House' | 'Villa';
   price: number;
-  imageUrl: string;
+  imageUrls: string[];
   imageHint: string;
+  facilities: string[];
   ownerId: string;
   status: 'pending' | 'approved' | 'sold';
   createdAt: Timestamp | Date;

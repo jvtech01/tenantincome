@@ -37,13 +37,19 @@ import {
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
+const MAX_IMAGES = 5;
+
 const listingSchema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters'),
   description: z.string().min(20, 'Description must be at least 20 characters'),
   location: z.string().min(3, 'Location is required'),
+  address: z.string().min(10, 'A detailed address is required'),
   type: z.enum(['Apartment', 'Shared', 'House', 'Villa']),
   price: z.coerce.number().positive('Price must be a positive number'),
-  image: z.instanceof(File).refine((file) => file.size > 0, 'An image is required.'),
+  images: z.array(z.instanceof(File))
+    .min(1, 'At least one image is required.')
+    .max(MAX_IMAGES, `You can upload a maximum of ${MAX_IMAGES} images.`),
+  facilities: z.string().min(3, 'List at least one facility, separated by commas.'),
 });
 
 type ListingFormValues = z.infer<typeof listingSchema>;
@@ -60,8 +66,11 @@ export function ListingForm() {
       title: '',
       description: '',
       location: '',
+      address: '',
       type: 'Apartment',
       price: 0,
+      images: [],
+      facilities: '',
     },
   });
 
@@ -73,18 +82,26 @@ export function ListingForm() {
     setIsSubmitting(true);
 
     try {
-      // 1. Upload image to Firebase Storage
-      const imageRef = ref(storage, `listings/${user.uid}/${Date.now()}_${data.image.name}`);
-      const uploadTask = await uploadBytes(imageRef, data.image);
-      const imageUrl = await getDownloadURL(uploadTask.ref);
+      // 1. Upload images to Firebase Storage
+      const imageUrls = await Promise.all(
+        data.images.map(async (image) => {
+          const imageRef = ref(storage, `listings/${user.uid}/${Date.now()}_${image.name}`);
+          const uploadTask = await uploadBytes(imageRef, image);
+          return getDownloadURL(uploadTask.ref);
+        })
+      );
       
+      const facilitiesArray = data.facilities.split(',').map(f => f.trim()).filter(f => f);
+
       const listingData = {
         title: data.title,
         description: data.description,
         location: data.location,
+        address: data.address,
         type: data.type,
         price: data.price,
-        imageUrl,
+        imageUrls,
+        facilities: facilitiesArray,
         imageHint: `${data.type} ${data.location}`,
         ownerId: user.uid,
         status: 'pending',
@@ -156,14 +173,30 @@ export function ListingForm() {
             name="location"
             render={({ field }) => (
                 <FormItem>
-                <FormLabel>Location</FormLabel>
+                <FormLabel>City/Area</FormLabel>
                 <FormControl>
-                    <Input placeholder="e.g., New York, NY" {...field} />
+                    <Input placeholder="e.g., Lekki, Lagos" {...field} />
                 </FormControl>
                 <FormMessage />
                 </FormItem>
             )}
             />
+            <FormField
+            control={form.control}
+            name="address"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>Full Address</FormLabel>
+                <FormControl>
+                    <Input placeholder="e.g., 123 Fola Osibo Street" {...field} />
+                </FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <FormField
             control={form.control}
             name="type"
@@ -187,31 +220,49 @@ export function ListingForm() {
                 </FormItem>
             )}
             />
+             <FormField
+                control={form.control}
+                name="price"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Price (₦ per month)</FormLabel>
+                    <FormControl>
+                        <Input type="number" placeholder="e.g., 250000" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+            />
         </div>
         <FormField
             control={form.control}
-            name="price"
+            name="facilities"
             render={({ field }) => (
                 <FormItem>
-                <FormLabel>Price (per month)</FormLabel>
+                <FormLabel>Facilities & Nearby Landmarks</FormLabel>
                 <FormControl>
-                    <Input type="number" placeholder="e.g., 2500" {...field} />
+                    <Input placeholder="e.g., 24/7 Light, Good Roads, Shoprite Mall" {...field} />
                 </FormControl>
+                 <p className="text-xs text-muted-foreground">Separate items with a comma.</p>
                 <FormMessage />
                 </FormItem>
             )}
         />
         <FormField
             control={form.control}
-            name="image"
+            name="images"
             render={({ field: { onChange, value, ...rest } }) => (
             <FormItem>
-                <FormLabel>Property Image</FormLabel>
+                <FormLabel>Property Images (up to {MAX_IMAGES})</FormLabel>
                 <FormControl>
                     <Input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => onChange(e.target.files ? e.target.files[0] : null)}
+                    multiple
+                    onChange={(e) => {
+                        const files = e.target.files ? Array.from(e.target.files) : [];
+                        onChange(files.slice(0, MAX_IMAGES));
+                    }}
                     {...rest}
                     />
                 </FormControl>

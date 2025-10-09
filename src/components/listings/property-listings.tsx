@@ -10,7 +10,7 @@ import { PropertyFilters } from './property-filters';
 import { Skeleton } from '../ui/skeleton';
 import { errorEmitter } from '@/lib/firebase/error-emitter';
 import { FirestorePermissionError } from '@/lib/firebase/errors';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import placeholderData from '@/lib/placeholder-images.json';
 
 type Filters = {
     location: string;
@@ -21,15 +21,17 @@ type Filters = {
 const MAX_PRICE = 10000000;
 
 // Convert placeholder images to Listing format
-const placeholderListings: Listing[] = PlaceHolderImages.map(p => ({
+const placeholderListings: Listing[] = placeholderData.placeholderImages.map(p => ({
   id: p.id,
-  title: p.description,
+  title: p.description.split('.')[0],
   description: p.description,
-  location: p.description.split(',').slice(-2).join(',').trim(), // Attempt to get a location
-  type: 'Apartment', // default type
+  location: p.address.split(',').slice(-2).join(',').trim(),
+  address: p.address,
+  type: 'Apartment', // default type, can be randomized or improved
   price: p.price,
-  imageUrl: p.imageUrl,
+  imageUrls: p.imageUrls,
   imageHint: p.imageHint,
+  facilities: p.facilities,
   ownerId: 'placeholder',
   status: 'approved',
   createdAt: Timestamp.now(),
@@ -124,7 +126,7 @@ export function PropertyListings() {
           ))}
         </div>
       ) : filteredListings.length > 0 ? (
-        <div className="mt-8 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="mt-8 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
           {filteredListings.map((listing) => (
             <PropertyCard key={listing.id} listing={listing} />
           ))}
