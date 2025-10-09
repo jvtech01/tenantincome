@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import type { Listing } from '@/lib/types';
 import { PropertyCard } from './property-card';
@@ -10,6 +10,7 @@ import { PropertyFilters } from './property-filters';
 import { Skeleton } from '../ui/skeleton';
 import { errorEmitter } from '@/lib/firebase/error-emitter';
 import { FirestorePermissionError } from '@/lib/firebase/errors';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 type Filters = {
     location: string;
@@ -19,8 +20,24 @@ type Filters = {
 
 const MAX_PRICE = 10000000;
 
+// Convert placeholder images to Listing format
+const placeholderListings: Listing[] = PlaceHolderImages.map(p => ({
+  id: p.id,
+  title: p.description,
+  description: p.description,
+  location: p.description.split(',').slice(-2).join(',').trim(), // Attempt to get a location
+  type: 'Apartment', // default type
+  price: p.price,
+  imageUrl: p.imageUrl,
+  imageHint: p.imageHint,
+  ownerId: 'placeholder',
+  status: 'approved',
+  createdAt: Timestamp.now(),
+}));
+
+
 export function PropertyListings() {
-  const [listings, setListings] = useState<Listing[]>([]);
+  const [firestoreListings, setFirestoreListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<Filters>({
     location: '',
@@ -43,7 +60,6 @@ export function PropertyListings() {
         ...doc.data(),
       } as Listing))
       .filter(listing => {
-        // Remove sold listings after 24 hours
         if (listing.status === 'sold' && listing.soldAt) {
           const soldAtDate = (listing.soldAt as any).toDate ? (listing.soldAt as any).toDate() : new Date(listing.soldAt);
           return soldAtDate > twentyFourHoursAgo;
@@ -51,7 +67,7 @@ export function PropertyListings() {
         return true;
       });
       
-      setListings(listingsData);
+      setFirestoreListings(listingsData);
       setLoading(false);
     },
     (error) => {
@@ -70,8 +86,14 @@ export function PropertyListings() {
     setFilters(newFilters);
   }, []);
 
+  const combinedListings = useMemo(() => {
+    const firestoreIds = new Set(firestoreListings.map(l => l.id));
+    const uniquePlaceholders = placeholderListings.filter(p => !firestoreIds.has(p.id));
+    return [...firestoreListings, ...uniquePlaceholders];
+  }, [firestoreListings]);
+
   const filteredListings = useMemo(() => {
-    return listings.filter((listing) => {
+    return combinedListings.filter((listing) => {
       const { location, type, priceRange } = filters;
       const priceInRange = listing.price >= priceRange[0] && (priceRange[1] === MAX_PRICE ? true : listing.price <= priceRange[1]);
       
@@ -83,7 +105,7 @@ export function PropertyListings() {
 
       return locationMatch && typeMatch && priceInRange;
     });
-  }, [listings, filters]);
+  }, [combinedListings, filters]);
 
   return (
     <div id="listings" className="container mx-auto px-4 py-12">

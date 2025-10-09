@@ -19,8 +19,8 @@ export type Listing = {
   imageHint: string;
   ownerId: string;
   status: 'pending' | 'approved' | 'sold';
-  createdAt: Timestamp;
-  soldAt?: Timestamp;
+  createdAt: Timestamp | Date;
+  soldAt?: Timestamp | Date;
 };
 
 export type Payment = {
