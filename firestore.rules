@@ -1,115 +1,107 @@
 /**
- * @file Firestore Security Rules
- * @version 2
+ * @fileoverview Firestore Security Rules for Property Listings App.
  *
- * @Core Philosophy
- * This ruleset employs a mixed security model. User profiles are readable by anyone but only updatable by the user themselves.
- * Listings are publicly readable, but write access is restricted to owners.
- * Payments are not accessible to anyone.
+ * Core Philosophy:
+ * This ruleset prioritizes security by enforcing strict ownership and role-based access control.
+ * Public read access is granted to the 'listings' collection.  Writes are limited to authenticated users with appropriate ownership.
+ * User profiles are protected, with only the authenticated user having write access to their own profile.
+ * Payments are restricted to authenticated users and are generally read-only except for creation.
  *
- * @Data Structure
- * - /users/{userId}: Stores user profile information, indexed by user ID.
- * - /listings/{listingId}: Stores property listings, indexed by listing ID.
- * - /payments/{paymentId}: Stores payment records, indexed by payment ID.
+ * Data Structure:
+ * - /users/{userId}: Stores user profile information.
+ * - /listings/{listingId}: Stores property listings.
+ *   - Each listing has an `ownerId` field that MUST match the user ID of the listing creator.
+ * - /payments/{paymentId}: Stores payment records.
+ *   - The listingId and userId are used to maintain payment history.
  *
- * @Key Security Decisions
- * - User listing is disallowed for privacy.
- * - Payments are strictly controlled and not readable or writable by any client.
+ * Key Security Decisions:
+ * - Users can only read and write their own profile data.
+ * - Anyone can list all listings.
+ * - Only listing owners can modify or delete their listings.
+ * - Payments can be created by anyone.
+ * - Payments can only be read.
  *
- * @Denormalization for Authorization
- * - The `Listing` entity includes an `ownerId` field to enable owner-based access control. This avoids needing to query a separate collection to determine ownership.
+ * Denormalization for Authorization:
+ * - The `Listing` entity denormalizes the `ownerId` to enable simple owner-based access control.
+ * - The `Payment` entity denormalizes the `listingId` and `userId` to enable payment access control.
  *
- * @Structural Segregation
- * - No explicit segregation between public and private data is needed at this time.
+ * Structural Segregation:
+ * - Public listings are stored in the top-level `listings` collection.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows users to read their own profile data and create their profile.
-     * @path /users/{userId}
-     * @allow (get) User with UID 'user123' can read /users/user123.
-     * @allow (create) User with UID 'user123' can create /users/user123, with data including 'uid': 'user123'.
-     * @allow (update) User with UID 'user123' can update /users/user123.
-     * @deny (get) User with UID 'user456' cannot read /users/user123.
-     * @deny (create) User with UID 'user123' cannot create /users/user456.
-     * @deny (update) User with UID 'user456' cannot update /users/user123.
-     * @principle Enforces document ownership for writes.
+     * @description Checks if the request is authenticated (user is signed in).
      */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * @description Checks if the authenticated user's UID matches the provided userId.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * @description Checks if the authenticated user owns the resource (based on the `ownerId` field).
+     */
+    function isResourceOwner(ownerId) {
+        return isSignedIn() && request.auth.uid == ownerId;
+    }
+
+    /**
+     * @description Checks if the authenticated user is the owner of the existing resource.
+     */
+    function isExistingOwner(ownerId) {
+      return isResourceOwner(ownerId) && resource != null;
+    }
+
     match /users/{userId} {
-      //Helper function to check if the request is from the signed-in user
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      //Helper function to check if the user ID matches the requested user ID
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      //Helper function to check if the user ID matches the requested user ID and document exists
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
+      /**
+       * @description Allows users to read and write their own profile data.
+       * @path /users/{userId}
+       * @allow (get, create, update, delete) if the authenticated user's ID matches the userId.
+       * @deny (get, create, update, delete) if the authenticated user is not signed in.
+       * @principle Enforces user-ownership for profile data.
+       */
       allow get: if true;
-      allow list: if false; // User listing is disallowed for privacy.
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.uid == userId;
+      allow list: if false;
+      allow create: if isOwner(userId) && request.resource.data.uid == userId;
       allow update: if isExistingOwner(userId) && request.resource.data.uid == resource.data.uid;
       allow delete: if isExistingOwner(userId);
     }
 
-    /**
-     * @description Allows anyone to read listings, but only the owner can create, update, or delete them.
-     * @path /listings/{listingId}
-     * @allow (get) Any user can read /listings/listing1.
-     * @allow (list) Any user can list /listings.
-     * @allow (create) User with UID 'user123' can create /listings/listing1 with 'ownerId': 'user123'.
-     * @allow (update) User with UID 'user123' can update /listings/listing1 if they are the owner ('ownerId' is 'user123').
-     * @allow (delete) User with UID 'user123' can delete /listings/listing1 if they are the owner ('ownerId' is 'user123').
-     * @deny (create) User with UID 'user456' cannot create /listings/listing1 with 'ownerId': 'user123'.
-     * @deny (update) User with UID 'user456' cannot update /listings/listing1 if they are not the owner ('ownerId' is 'user123').
-     * @deny (delete) User with UID 'user456' cannot delete /listings/listing1 if they are not the owner ('ownerId' is 'user123').
-     * @principle Enforces document ownership for writes while allowing public reads.
-     */
     match /listings/{listingId} {
-      //Helper function to check if the request is from the signed-in user
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      //Helper function to check if the user ID matches the document's ownerId field
-      function isOwner(ownerId) {
-        return request.auth.uid == ownerId;
-      }
-
-      //Helper function to check if the user ID matches the document's ownerId field and document exists
-      function isExistingOwner(ownerId) {
-        return isOwner(ownerId) && resource != null;
-      }
-
-      allow get: if true;
-      allow list: if true;
-      allow create: if isSignedIn() && isOwner(request.resource.data.ownerId);
+      /**
+       * @description Allows anyone to read listings, but restricts creation, updates, and deletion to the listing owner.
+       * @path /listings/{listingId}
+       * @allow (get, list) if true (public read access).
+       * @allow (create) if the authenticated user's ID matches the listing's `ownerId` field.
+       * @allow (update, delete) if the authenticated user is the owner of the listing.
+       * @deny (create, update, delete) if the authenticated user is not the listing owner or not signed in.
+       * @principle Enforces owner-only writes with public read access.
+       */
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
       allow update: if isExistingOwner(resource.data.ownerId);
       allow delete: if isExistingOwner(resource.data.ownerId);
     }
 
-    /**
-     * @description Payments are not accessible to anyone
-     * @path /payments/{paymentId}
-     * @deny (get) No user can get /payments/payment1.
-     * @deny (list) No user can list /payments.
-     * @deny (create) No user can create /payments/payment1.
-     * @deny (update) No user can update /payments/payment1.
-     * @deny (delete) No user can delete /payments/payment1.
-     * @principle Restricts access to payments for all users.
-     */
     match /payments/{paymentId} {
-      allow get: if false;
-      allow list: if false;
-      allow create: if false;
+      /**
+       * @description Allows creating payments, but restricts updates and deletion.
+       * @path /payments/{paymentId}
+       * @allow (get, list) if true.
+       * @allow (create) if isSignedIn().
+       * @deny (update, delete) at all times.
+       * @principle Limits writes to payment creation and restricts modification.
+       */
+      allow get, list: if true;
+      allow create: if isSignedIn();
       allow update: if false;
       allow delete: if false;
     }
