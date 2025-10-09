@@ -25,7 +25,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Check, X, Loader2 } from 'lucide-react';
+import { Check, X, Loader2, FileText, User } from 'lucide-react';
 import Image from 'next/image';
 import {
     AlertDialog,
@@ -112,6 +112,12 @@ export function AdminDashboard() {
           return deleteObject(imageRef);
         }));
       }
+      // Delete verification docs from Storage
+      if(listing.verification) {
+        const billRef = ref(storage, listing.verification.utilityBillUrl);
+        const idRef = ref(storage, listing.verification.identityCardUrl);
+        await Promise.all([deleteObject(billRef), deleteObject(idRef)]);
+      }
 
       toast({ title: 'Success', description: 'Listing deleted.' });
     } catch (error) {
@@ -135,7 +141,7 @@ export function AdminDashboard() {
             <TableHead>Title</TableHead>
             <TableHead>Location</TableHead>
             <TableHead>Price</TableHead>
-            <TableHead>Status</TableHead>
+            <TableHead>Documents</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -150,7 +156,16 @@ export function AdminDashboard() {
                 <TableCell>{listing.location}</TableCell>
                 <TableCell>₦{listing.price.toLocaleString()}</TableCell>
                 <TableCell>
-                  <Badge variant="secondary">{listing.status}</Badge>
+                  {listing.verification ? (
+                    <div className="flex items-center gap-2">
+                      <a href={listing.verification.utilityBillUrl} target="_blank" rel="noopener noreferrer">
+                        <Button variant="outline" size="sm"><FileText className="mr-2 h-4 w-4" /> Bill</Button>
+                      </a>
+                       <a href={listing.verification.identityCardUrl} target="_blank" rel="noopener noreferrer">
+                        <Button variant="outline" size="sm"><User className="mr-2 h-4 w-4" /> ID</Button>
+                      </a>
+                    </div>
+                  ) : <Badge variant="secondary">No Docs</Badge>}
                 </TableCell>
                 <TableCell className="text-right">
                   {updatingId === listing.id ? (

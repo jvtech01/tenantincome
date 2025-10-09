@@ -8,6 +8,12 @@ export type UserProfile = {
   isAdmin?: boolean;
 };
 
+export type ListingVerification = {
+    utilityBillUrl: string;
+    identityCardUrl: string;
+    listingReason: 'moving_out' | 'finding_flatmate';
+}
+
 export type Listing = {
   id: string;
   title: string;
@@ -23,6 +29,7 @@ export type Listing = {
   status: 'pending' | 'approved' | 'sold';
   createdAt: Timestamp | Date;
   soldAt?: Timestamp | Date;
+  verification?: ListingVerification;
 };
 
 export type Payment = {
