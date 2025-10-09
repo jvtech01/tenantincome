@@ -146,7 +146,7 @@ export function AdminDashboard() {
                 </TableCell>
                 <TableCell className="font-medium">{listing.title}</TableCell>
                 <TableCell>{listing.location}</TableCell>
-                <TableCell>${listing.price.toLocaleString()}</TableCell>
+                <TableCell>₦{listing.price.toLocaleString()}</TableCell>
                 <TableCell>
                   <Badge variant="secondary">{listing.status}</Badge>
                 </TableCell>

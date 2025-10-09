@@ -131,10 +131,10 @@ export function PaymentPageClient({ listing }: PaymentPageClientProps) {
                     <Separator className="my-4" />
                     <div className="space-y-2 text-sm">
                         <div className="flex justify-between"><span>Property Type:</span><span className="font-medium">{listing.type}</span></div>
-                        <div className="flex justify-between"><span>Base Rent:</span><span className="font-medium">${listing.price.toLocaleString()}/month</span></div>
-                        <div className="flex justify-between"><span>Service Fee (10%):</span><span className="font-medium">${serviceFee.toLocaleString()}</span></div>
+                        <div className="flex justify-between"><span>Base Rent:</span><span className="font-medium">₦{listing.price.toLocaleString()}/month</span></div>
+                        <div className="flex justify-between"><span>Service Fee (10%):</span><span className="font-medium">₦{serviceFee.toLocaleString()}</span></div>
                         <Separator />
-                        <div className="flex justify-between text-lg font-bold"><span>Total Due:</span><span className="text-primary">${totalPrice.toLocaleString()}</span></div>
+                        <div className="flex justify-between text-lg font-bold"><span>Total Due:</span><span className="text-primary">₦{totalPrice.toLocaleString()}</span></div>
                     </div>
                 </CardContent>
                  <CardFooter className="flex-col gap-4">

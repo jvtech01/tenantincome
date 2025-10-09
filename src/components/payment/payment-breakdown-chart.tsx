@@ -81,7 +81,7 @@ export function PaymentBreakdownChart({ totalPrice }: PaymentBreakdownChartProps
                 borderColor: 'hsl(var(--border))',
                 borderRadius: 'var(--radius)',
               }}
-              formatter={(value: number, name, props) => [`$${value.toFixed(2)}`, `${props.payload.name} (${props.payload.percentage}%)`]}
+              formatter={(value: number, name, props) => [`₦${value.toFixed(2)}`, `${props.payload.name} (${props.payload.percentage}%)`]}
             />
           </PieChart>
         </ResponsiveContainer>
@@ -97,7 +97,7 @@ export function PaymentBreakdownChart({ totalPrice }: PaymentBreakdownChartProps
               <span>{entry.name}</span>
               <Badge variant="outline">{entry.percentage}%</Badge>
             </div>
-            <span className="font-medium">${entry.value.toFixed(2)}</span>
+            <span className="font-medium">₦{entry.value.toFixed(2)}</span>
           </div>
         ))}
       </div>

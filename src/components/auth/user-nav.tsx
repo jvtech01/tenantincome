@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/use-auth';
-import { LogOut, User as UserIcon, Building } from 'lucide-react';
+import { LogOut, User as UserIcon, Building, Shield } from 'lucide-react';
 import Link from 'next/link';
 
 export function UserNav() {
@@ -63,7 +63,7 @@ export function UserNav() {
           {user.isAdmin && (
              <Link href="/admin">
                 <DropdownMenuItem>
-                <UserIcon className="mr-2 h-4 w-4" />
+                <Shield className="mr-2 h-4 w-4" />
                 <span>Admin Panel</span>
                 </DropdownMenuItem>
             </Link>

@@ -70,7 +70,7 @@ export function PropertyCard({ listing }: PropertyCardProps) {
         <div className="flex w-full items-center justify-between">
             <div className="flex items-center gap-2 text-lg font-semibold text-primary">
                 <Banknote className="h-5 w-5" />
-                <span>${listing.price.toLocaleString()}</span>
+                <span>₦{listing.price.toLocaleString()}</span>
                 <span className="text-sm font-normal text-muted-foreground">/month</span>
             </div>
         </div>
