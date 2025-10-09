@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import type { Listing } from '@/lib/types';
@@ -10,13 +11,21 @@ import { Skeleton } from '../ui/skeleton';
 import { errorEmitter } from '@/lib/firebase/error-emitter';
 import { FirestorePermissionError } from '@/lib/firebase/errors';
 
+type Filters = {
+    location: string;
+    type: string;
+    priceRange: [number, number];
+};
+
+const MAX_PRICE = 10000000;
+
 export function PropertyListings() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<Filters>({
     location: '',
     type: 'all',
-    priceRange: [0, 5000],
+    priceRange: [150000, MAX_PRICE],
   });
 
   useEffect(() => {
@@ -57,21 +66,28 @@ export function PropertyListings() {
     return () => unsubscribe();
   }, []);
 
+  const handleFilterChange = useCallback((newFilters: Filters) => {
+    setFilters(newFilters);
+  }, []);
+
   const filteredListings = useMemo(() => {
     return listings.filter((listing) => {
       const { location, type, priceRange } = filters;
-      const priceInRange = listing.price >= priceRange[0] && (priceRange[1] === 10000 ? true : listing.price <= priceRange[1]);
-      return (
-        (location === '' || listing.location.toLowerCase().includes(location.toLowerCase())) &&
-        (type === 'all' || listing.type === type) &&
-        priceInRange
-      );
+      const priceInRange = listing.price >= priceRange[0] && (priceRange[1] === MAX_PRICE ? true : listing.price <= priceRange[1]);
+      
+      const locationMatch = location.trim() === '' || 
+                            listing.location.toLowerCase().includes(location.toLowerCase()) ||
+                            listing.title.toLowerCase().includes(location.toLowerCase());
+
+      const typeMatch = type === 'all' || listing.type === type;
+
+      return locationMatch && typeMatch && priceInRange;
     });
   }, [listings, filters]);
 
   return (
     <div id="listings" className="container mx-auto px-4 py-12">
-      <PropertyFilters onFilterChange={setFilters} />
+      <PropertyFilters onFilterChange={handleFilterChange} />
       {loading ? (
         <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (

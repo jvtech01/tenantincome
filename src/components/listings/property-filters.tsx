@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Input } from '@/components/ui/input';
@@ -23,13 +24,21 @@ type PropertyFiltersProps = {
   onFilterChange: (filters: Filters) => void;
 };
 
+const MAX_PRICE = 10000000;
+
 export function PropertyFilters({ onFilterChange }: PropertyFiltersProps) {
   const [location, setLocation] = React.useState('');
   const [type, setType] = React.useState('all');
-  const [priceRange, setPriceRange] = React.useState<[number, number]>([0, 5000]);
+  const [priceRange, setPriceRange] = React.useState<[number, number]>([150000, MAX_PRICE]);
 
   React.useEffect(() => {
-    onFilterChange({ location, type, priceRange });
+    const handler = setTimeout(() => {
+      onFilterChange({ location, type, priceRange });
+    }, 300);
+
+    return () => {
+      clearTimeout(handler);
+    };
   }, [location, type, priceRange, onFilterChange]);
   
   const handlePriceChange = (value: number[]) => {
@@ -45,7 +54,7 @@ export function PropertyFilters({ onFilterChange }: PropertyFiltersProps) {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                         id="location-search"
-                        placeholder="Search by city, neighborhood..."
+                        placeholder="Search by city, state, or neighborhood..."
                         value={location}
                         onChange={(e) => setLocation(e.target.value)}
                         className="pl-10"
@@ -68,17 +77,17 @@ export function PropertyFilters({ onFilterChange }: PropertyFiltersProps) {
                 </Select>
             </div>
             <div>
-                <Label className="mb-2 block text-sm font-medium">Price Range</Label>
+                <Label className="mb-2 block text-sm font-medium">Price Range (NGN)</Label>
                 <div className="flex flex-col gap-2">
                     <Slider
-                        min={0}
-                        max={10000}
-                        step={100}
+                        min={150000}
+                        max={MAX_PRICE}
+                        step={50000}
                         value={priceRange}
                         onValueChange={handlePriceChange}
                     />
                     <div className="text-sm text-muted-foreground">
-                        ${priceRange[0]} - ${priceRange[1] === 10000 ? '10000+' : priceRange[1]}
+                        ₦{priceRange[0].toLocaleString()} - ₦{priceRange[1] === MAX_PRICE ? `${MAX_PRICE.toLocaleString()}+` : priceRange[1].toLocaleString()}
                     </div>
                 </div>
             </div>
