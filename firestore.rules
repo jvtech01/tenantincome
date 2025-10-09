@@ -1,0 +1,51 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    match /users/{userId} {
+      // Users can only read/write their own profile
+      allow read, write: if isOwner(userId);
+      // Admins can read any profile
+      allow get: if isAdmin();
+    }
+
+    match /listings/{listingId} {
+      // Anyone can read approved or sold listings
+      allow get: if resource.data.status in ['approved', 'sold'];
+      // For lists, check the query condition.
+      // This allows the public homepage query to work.
+      allow list: if request.query.get("status") in [['approved', 'sold']];
+      
+      // Authenticated users can create new listings (with 'pending' status)
+      allow create: if request.auth != null
+                      && request.resource.data.status == 'pending'
+                      && request.resource.data.ownerId == request.auth.uid;
+      
+      // Only admins can approve listings (update status from 'pending' to 'approved')
+      // and mark as sold.
+      allow update: if isAdmin() || 
+                      (request.resource.data.status == 'sold' && resource.data.status == 'approved');
+
+      // The owner or an admin can delete a listing
+      allow delete: if isAdmin() || isOwner(resource.data.ownerId);
+    }
+
+    match /payments/{paymentId} {
+        // Authenticated users can create their own payment records
+        allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+        // Only admins can read payment records
+        allow read, list: if isAdmin();
+        // Payments cannot be updated or deleted by clients
+        allow update, delete: if false;
+    }
+  }
+}
