@@ -37,7 +37,9 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
     AlertDialogTrigger,
-  } from "@/components/ui/alert-dialog"
+  } from "@/components/ui/alert-dialog";
+import { errorEmitter } from '@/lib/firebase/error-emitter';
+import { FirestorePermissionError } from '@/lib/firebase/errors';
 
 export function AdminDashboard() {
   const [pendingListings, setPendingListings] = useState<Listing[]>([]);
@@ -53,6 +55,13 @@ export function AdminDashboard() {
       );
       setPendingListings(listingsData);
       setLoading(false);
+    }, (error) => {
+        const permissionError = new FirestorePermissionError({
+            path: 'listings',
+            operation: 'list',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        setLoading(false);
     });
 
     return () => unsubscribe();
@@ -62,7 +71,17 @@ export function AdminDashboard() {
     setUpdatingId(id);
     try {
       const listingRef = doc(db, 'listings', id);
-      await updateDoc(listingRef, { status: 'approved' });
+      const updateData = { status: 'approved' };
+      await updateDoc(listingRef, updateData)
+        .catch(error => {
+            const permissionError = new FirestorePermissionError({
+                path: `listings/${id}`,
+                operation: 'update',
+                requestResourceData: updateData,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            throw error;
+        });
       toast({ title: 'Success', description: 'Listing approved.' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to approve listing.', variant: 'destructive' });
@@ -76,11 +95,21 @@ export function AdminDashboard() {
     setUpdatingId(listing.id);
     try {
       // Delete Firestore document
-      await deleteDoc(doc(db, 'listings', listing.id));
+      await deleteDoc(doc(db, 'listings', listing.id))
+        .catch(error => {
+            const permissionError = new FirestorePermissionError({
+                path: `listings/${listing.id}`,
+                operation: 'delete',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            throw error;
+        });
       
       // Delete image from Storage
-      const imageRef = ref(storage, listing.imageUrl);
-      await deleteObject(imageRef);
+      if (listing.imageUrl) {
+        const imageRef = ref(storage, listing.imageUrl);
+        await deleteObject(imageRef);
+      }
 
       toast({ title: 'Success', description: 'Listing deleted.' });
     } catch (error) {

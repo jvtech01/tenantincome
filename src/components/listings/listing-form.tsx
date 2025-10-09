@@ -13,6 +13,8 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase/config';
+import { errorEmitter } from '@/lib/firebase/error-emitter';
+import { FirestorePermissionError } from '@/lib/firebase/errors';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -73,11 +75,10 @@ export function ListingForm() {
     try {
       // 1. Upload image to Firebase Storage
       const imageRef = ref(storage, `listings/${user.uid}/${Date.now()}_${data.image.name}`);
-      await uploadBytes(imageRef, data.image);
-      const imageUrl = await getDownloadURL(imageRef);
-
-      // 2. Create listing document in Firestore
-      await addDoc(collection(db, 'listings'), {
+      const uploadTask = await uploadBytes(imageRef, data.image);
+      const imageUrl = await getDownloadURL(uploadTask.ref);
+      
+      const listingData = {
         title: data.title,
         description: data.description,
         location: data.location,
@@ -88,6 +89,17 @@ export function ListingForm() {
         ownerId: user.uid,
         status: 'pending',
         createdAt: serverTimestamp(),
+      };
+
+      // 2. Create listing document in Firestore
+      addDoc(collection(db, 'listings'), listingData).catch(error => {
+        const permissionError = new FirestorePermissionError({
+          path: 'listings',
+          operation: 'create',
+          requestResourceData: listingData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        throw error;
       });
 
       toast({

@@ -7,6 +7,8 @@ import type { Listing } from '@/lib/types';
 import { PropertyCard } from './property-card';
 import { PropertyFilters } from './property-filters';
 import { Skeleton } from '../ui/skeleton';
+import { errorEmitter } from '@/lib/firebase/error-emitter';
+import { FirestorePermissionError } from '@/lib/firebase/errors';
 
 export function PropertyListings() {
   const [listings, setListings] = useState<Listing[]>([]);
@@ -34,13 +36,22 @@ export function PropertyListings() {
       .filter(listing => {
         // Remove sold listings after 24 hours
         if (listing.status === 'sold' && listing.soldAt) {
-          return listing.soldAt.toDate() > twentyFourHoursAgo;
+          const soldAtDate = (listing.soldAt as any).toDate ? (listing.soldAt as any).toDate() : new Date(listing.soldAt);
+          return soldAtDate > twentyFourHoursAgo;
         }
         return true;
       });
       
       setListings(listingsData);
       setLoading(false);
+    },
+    (error) => {
+        const permissionError = new FirestorePermissionError({
+            path: 'listings',
+            operation: 'list',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        setLoading(false);
     });
 
     return () => unsubscribe();
@@ -49,10 +60,11 @@ export function PropertyListings() {
   const filteredListings = useMemo(() => {
     return listings.filter((listing) => {
       const { location, type, priceRange } = filters;
+      const priceInRange = listing.price >= priceRange[0] && (priceRange[1] === 10000 ? true : listing.price <= priceRange[1]);
       return (
         (location === '' || listing.location.toLowerCase().includes(location.toLowerCase())) &&
         (type === 'all' || listing.type === type) &&
-        (listing.price >= priceRange[0] && listing.price <= priceRange[1])
+        priceInRange
       );
     });
   }, [listings, filters]);
@@ -81,7 +93,7 @@ export function PropertyListings() {
         </div>
       ) : (
         <div className="mt-8 text-center text-muted-foreground">
-          <p>No properties match your criteria. Try adjusting your filters.</p>
+          <p>No properties match your criteria. Try adjusting your filters or check back later.</p>
         </div>
       )}
     </div>

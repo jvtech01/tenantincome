@@ -3,6 +3,7 @@ import './globals.css';
 import { ThemeProvider } from '@/components/theme/theme-provider';
 import { AuthProvider } from '@/contexts/auth-context';
 import { Toaster } from '@/components/ui/toaster';
+import { FirebaseErrorListener } from '@/components/firebase-error-listener';
 
 export const metadata: Metadata = {
   title: 'JVHOUZIN – Tenant Powered Housing',
@@ -36,6 +37,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
+            <FirebaseErrorListener />
             {children}
             <Toaster />
           </AuthProvider>

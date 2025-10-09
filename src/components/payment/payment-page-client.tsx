@@ -17,6 +17,8 @@ import { addDoc, collection, serverTimestamp, doc, updateDoc } from 'firebase/fi
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase/config';
 import { AuthModal } from '../auth/auth-modal';
+import { errorEmitter } from '@/lib/firebase/error-emitter';
+import { FirestorePermissionError } from '@/lib/firebase/errors';
 
 interface PaymentPageClientProps {
     listing: Listing;
@@ -55,21 +57,42 @@ export function PaymentPageClient({ listing }: PaymentPageClientProps) {
             await uploadBytes(receiptRef, receiptFile);
             const receiptUrl = await getDownloadURL(receiptRef);
 
-            // 2. Create payment record
-            await addDoc(collection(db, 'payments'), {
+            const paymentData = {
                 listingId: listing.id,
                 userId: user.uid,
                 amount: totalPrice,
                 receiptUrl,
                 createdAt: serverTimestamp(),
-            });
+            };
+
+            // 2. Create payment record
+            addDoc(collection(db, 'payments'), paymentData)
+                .catch(error => {
+                    const permissionError = new FirestorePermissionError({
+                        path: 'payments',
+                        operation: 'create',
+                        requestResourceData: paymentData
+                    });
+                    errorEmitter.emit('permission-error', permissionError);
+                    throw error;
+                });
 
             // 3. Update listing status to 'sold'
             const listingRef = doc(db, 'listings', listing.id);
-            await updateDoc(listingRef, {
+            const listingUpdateData = {
                 status: 'sold',
                 soldAt: serverTimestamp(),
-            });
+            };
+            updateDoc(listingRef, listingUpdateData)
+                .catch(error => {
+                    const permissionError = new FirestorePermissionError({
+                        path: `listings/${listing.id}`,
+                        operation: 'update',
+                        requestResourceData: listingUpdateData
+                    });
+                    errorEmitter.emit('permission-error', permissionError);
+                    throw error;
+                });
 
             toast({ title: 'Payment Confirmed!', description: 'Your payment is being processed. Thank you!' });
             router.push('/');
