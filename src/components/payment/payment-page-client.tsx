@@ -124,7 +124,7 @@ export function PaymentPageClient({ listing }: PaymentPageClientProps) {
                 </CardHeader>
                 <CardContent>
                     <div className="relative mb-6 aspect-video w-full overflow-hidden rounded-lg">
-                        <Image src={listing.imageUrl} alt={listing.title} fill className="object-cover" />
+                        <Image src={listing.imageUrls[0]} alt={listing.title} fill className="object-cover" />
                     </div>
                     <h3 className="font-headline text-xl">{listing.title}</h3>
                     <p className="text-muted-foreground">{listing.location}</p>
