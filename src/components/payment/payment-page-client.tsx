@@ -13,7 +13,7 @@ import { PaymentBreakdownChart } from './payment-breakdown-chart';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { addDoc, collection, serverTimestamp, doc, runTransaction, getDoc } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, doc, runTransaction } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase/config';
 import { AuthModal } from '../auth/auth-modal';
@@ -54,52 +54,55 @@ export function PaymentPageClient({ listing }: PaymentPageClientProps) {
         try {
             const listingRef = doc(db, 'listings', listing.id);
 
-            // Run a transaction to prevent double-booking
+            // Use a transaction to ensure atomicity
             await runTransaction(db, async (transaction) => {
                 const listingDoc = await transaction.get(listingRef);
-                if (!listingDoc.exists()) {
-                    throw new Error("Listing does not exist!");
+                if (!listingDoc.exists() || listingDoc.data().status !== 'approved') {
+                    throw new Error('This property is not available for rent.');
                 }
-                const currentListingData = listingDoc.data();
-                if (currentListingData.status === 'sold') {
-                    throw new Error('This property has already been rented.');
-                }
-                
-                // 1. Upload receipt (do this outside transaction if it's slow, but for now it's ok)
-                const receiptRef = ref(storage, `receipts/${user.uid}/${Date.now()}_${receiptFile.name}`);
-                await uploadBytes(receiptRef, receiptFile);
-                const receiptUrl = await getDownloadURL(receiptRef);
 
+                // 1. Upload receipt
+                const receiptRef = ref(storage, `receipts/${user.uid}/${Date.now()}_${receiptFile.name}`);
+                const receiptSnapshot = await uploadBytes(receiptRef, receiptFile);
+                const receiptUrl = await getDownloadURL(receiptSnapshot.ref);
+
+                // 2. Create payment record
                 const paymentData = {
                     listingId: listing.id,
                     userId: user.uid,
                     amount: totalPrice,
                     receiptUrl,
                     createdAt: serverTimestamp(),
+                    status: 'pending_confirmation'
                 };
-
-                // 2. Create payment record
                 const paymentRef = doc(collection(db, 'payments'));
                 transaction.set(paymentRef, paymentData);
 
-                // 3. Update listing status to 'sold'
-                 const listingUpdateData = {
-                    status: 'sold',
-                    soldAt: serverTimestamp(),
-                };
+                // 3. Update listing status to 'pending' to reserve it
+                const listingUpdateData = { status: 'pending' };
                 transaction.update(listingRef, listingUpdateData);
+            }).catch(error => {
+                 const permissionError = new FirestorePermissionError({
+                    path: `listings/${listing.id}`,
+                    operation: 'update',
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                throw error;
             });
 
 
-            toast({ title: 'Payment Confirmed!', description: 'Your payment is being processed. Thank you!' });
+            toast({ 
+                title: 'Payment Submitted!', 
+                description: 'Your payment is awaiting admin confirmation. The listing is now reserved.' 
+            });
             router.push('/');
 
         } catch (error: any) {
             console.error('Payment submission error:', error);
-            if (error.message.includes('already been rented')) {
+            if (error.message.includes('not available')) {
                  toast({ title: 'Property Unavailable', description: 'Sorry, this property was just rented by someone else.', variant: 'destructive' });
             } else {
-                toast({ title: 'Submission Failed', description: 'Could not confirm payment. Please try again.', variant: 'destructive' });
+                toast({ title: 'Submission Failed', description: 'Could not submit payment for review. Please try again.', variant: 'destructive' });
             }
         } finally {
             setIsSubmitting(false);
@@ -109,10 +112,13 @@ export function PaymentPageClient({ listing }: PaymentPageClientProps) {
     const AuthButton = () => {
         if (loading) return <Button className="w-full" disabled><Loader2 className="mr-2 h-4 w-4 animate-spin" />Loading...</Button>;
         if (!user) return <AuthModal><Button className="w-full">Login to Pay</Button></AuthModal>;
+        
+        const isUnavailable = listing.status === 'sold' || listing.status === 'pending';
+
         return (
-            <Button className="w-full" onClick={handleSubmit} disabled={isSubmitting || listing.status === 'sold'}>
+            <Button className="w-full" onClick={handleSubmit} disabled={isSubmitting || isUnavailable}>
                 {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                {listing.status === 'sold' ? 'Already Rented' : 'Confirm Payment'}
+                {isUnavailable ? 'Property Unavailable' : 'Submit for Confirmation'}
             </Button>
         );
     }
@@ -141,7 +147,7 @@ export function PaymentPageClient({ listing }: PaymentPageClientProps) {
                  <CardFooter className="flex-col gap-4">
                     <div className="w-full space-y-2">
                         <Label htmlFor="receipt">Upload Payment Receipt</Label>
-                        <Input id="receipt" type="file" onChange={handleFileChange} disabled={isSubmitting || listing.status === 'sold'}/>
+                        <Input id="receipt" type="file" onChange={handleFileChange} disabled={isSubmitting || listing.status === 'sold' || listing.status === 'pending'}/>
                     </div>
                     <AuthButton />
                 </CardFooter>
@@ -161,3 +167,5 @@ export function PaymentPageClient({ listing }: PaymentPageClientProps) {
         </div>
     );
 }
+
+    

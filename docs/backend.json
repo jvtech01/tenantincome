@@ -43,9 +43,10 @@
         "userId": { "type": "string" },
         "amount": { "type": "number" },
         "receiptUrl": { "type": "string", "format": "uri" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending_confirmation", "confirmed", "rejected"] }
       },
-      "required": ["listingId", "userId", "amount", "receiptUrl", "createdAt"]
+      "required": ["listingId", "userId", "amount", "receiptUrl", "createdAt", "status"]
     }
   },
   "auth": {
@@ -66,3 +67,5 @@
     }
   }
 }
+
+    

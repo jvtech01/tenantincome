@@ -9,11 +9,13 @@ import {
   doc,
   updateDoc,
   deleteDoc,
-  orderBy
+  orderBy,
+  getDocs,
+  writeBatch
 } from 'firebase/firestore';
 import { deleteObject, ref } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase/config';
-import type { Listing } from '@/lib/types';
+import type { Listing, Payment } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,7 +27,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Check, X, Loader2, FileText, User } from 'lucide-react';
+import { Check, X, Loader2, FileText, User, Banknote } from 'lucide-react';
 import Image from 'next/image';
 import {
     AlertDialog,
@@ -43,17 +45,32 @@ import { FirestorePermissionError } from '@/lib/firebase/errors';
 
 export function AdminDashboard() {
   const [pendingListings, setPendingListings] = useState<Listing[]>([]);
+  const [payments, setPayments] = useState<Record<string, Payment>>({});
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     const q = query(collection(db, 'listings'), where('status', '==', 'pending'), orderBy('createdAt', 'asc'));
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    const unsubscribe = onSnapshot(q, async (querySnapshot) => {
       const listingsData = querySnapshot.docs.map(
         (doc) => ({ id: doc.id, ...doc.data() } as Listing)
       );
       setPendingListings(listingsData);
+      
+      // Fetch related payments for these pending listings
+      if (listingsData.length > 0) {
+        const listingIds = listingsData.map(l => l.id);
+        const paymentsQuery = query(collection(db, 'payments'), where('listingId', 'in', listingIds), where('status', '==', 'pending_confirmation'));
+        const paymentsSnapshot = await getDocs(paymentsQuery);
+        const paymentsData: Record<string, Payment> = {};
+        paymentsSnapshot.forEach(doc => {
+            const payment = {id: doc.id, ...doc.data()} as Payment;
+            paymentsData[payment.listingId] = payment;
+        });
+        setPayments(paymentsData);
+      }
+      
       setLoading(false);
     }, (error) => {
         const permissionError = new FirestorePermissionError({
@@ -67,12 +84,23 @@ export function AdminDashboard() {
     return () => unsubscribe();
   }, []);
 
-  const handleApprove = async (id: string) => {
+  const handleApprove = async (id: string, isPaymentApproval: boolean) => {
     setUpdatingId(id);
     try {
       const listingRef = doc(db, 'listings', id);
-      const updateData = { status: 'approved' };
-      await updateDoc(listingRef, updateData)
+      const newStatus = isPaymentApproval ? 'sold' : 'approved';
+      const updateData = { status: newStatus };
+      
+      const batch = writeBatch(db);
+      batch.update(listingRef, updateData);
+
+      // If it's a payment approval, also update the payment status
+      if(isPaymentApproval && payments[id]) {
+        const paymentRef = doc(db, 'payments', payments[id].id);
+        batch.update(paymentRef, { status: 'confirmed' });
+      }
+
+      await batch.commit()
         .catch(error => {
             const permissionError = new FirestorePermissionError({
                 path: `listings/${id}`,
@@ -82,18 +110,47 @@ export function AdminDashboard() {
             errorEmitter.emit('permission-error', permissionError);
             throw error;
         });
-      toast({ title: 'Success', description: 'Listing approved.' });
+
+      toast({ title: 'Success', description: `Listing ${newStatus}.` });
     } catch (error) {
-      toast({ title: 'Error', description: 'Failed to approve listing.', variant: 'destructive' });
+      toast({ title: 'Error', description: `Failed to approve listing.`, variant: 'destructive' });
       console.error(error);
     } finally {
         setUpdatingId(null);
     }
   };
-
-  const handleDelete = async (listing: Listing) => {
+  
+  const handleReject = async (listing: Listing, isPaymentRejection: boolean) => {
     setUpdatingId(listing.id);
     try {
+        if(isPaymentRejection) {
+            // Revert listing to 'approved' so others can rent it
+            const listingRef = doc(db, 'listings', listing.id);
+            await updateDoc(listingRef, { status: 'approved' });
+
+             // Optionally, delete the payment record
+            if (payments[listing.id]) {
+                const paymentRef = doc(db, 'payments', payments[listing.id].id);
+                await deleteDoc(paymentRef);
+                const receiptRef = ref(storage, payments[listing.id].receiptUrl);
+                await deleteObject(receiptRef);
+            }
+            toast({ title: 'Success', description: 'Payment rejected. Listing is available again.' });
+
+        } else {
+             // This is a rejection of a new listing, so delete everything
+            await handleDelete(listing);
+        }
+    } catch(error) {
+         toast({ title: 'Error', description: 'Failed to reject.', variant: 'destructive' });
+         console.error(error);
+    } finally {
+        setUpdatingId(null);
+    }
+  }
+
+
+  const handleDelete = async (listing: Listing) => {
       // Delete Firestore document
       await deleteDoc(doc(db, 'listings', listing.id))
         .catch(error => {
@@ -109,24 +166,26 @@ export function AdminDashboard() {
       if (listing.imageUrls && listing.imageUrls.length > 0) {
         await Promise.all(listing.imageUrls.map(url => {
           const imageRef = ref(storage, url);
-          return deleteObject(imageRef);
+          return deleteObject(imageRef).catch(err => console.log(err));
         }));
       }
       // Delete verification docs from Storage
       if(listing.verification) {
         const billRef = ref(storage, listing.verification.utilityBillUrl);
         const idRef = ref(storage, listing.verification.identityCardUrl);
-        await Promise.all([deleteObject(billRef), deleteObject(idRef)]);
+        await Promise.all([deleteObject(billRef).catch(err => console.log(err)), deleteObject(idRef).catch(err => console.log(err))]);
       }
 
       toast({ title: 'Success', description: 'Listing deleted.' });
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to delete listing.', variant: 'destructive' });
-      console.error(error);
-    } finally {
-        setUpdatingId(null);
-    }
   };
+  
+  const getActionType = (listing: Listing) => {
+    if (payments[listing.id]) {
+        return 'payment'; // This is a pending payment
+    }
+    return 'listing'; // This is a new listing submission
+  }
+
 
   if (loading) {
     return <div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -139,40 +198,51 @@ export function AdminDashboard() {
           <TableRow>
             <TableHead className="w-[100px]">Image</TableHead>
             <TableHead>Title</TableHead>
-            <TableHead>Location</TableHead>
-            <TableHead>Price</TableHead>
+            <TableHead>Review Type</TableHead>
             <TableHead>Documents</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {pendingListings.length > 0 ? (
-            pendingListings.map((listing) => (
+            pendingListings.map((listing) => {
+              const actionType = getActionType(listing);
+              const isPaymentReview = actionType === 'payment';
+
+              return (
               <TableRow key={listing.id}>
                 <TableCell>
                     <Image src={listing.imageUrls[0]} alt={listing.title} width={80} height={60} className="rounded-md object-cover"/>
                 </TableCell>
-                <TableCell className="font-medium">{listing.title}</TableCell>
-                <TableCell>{listing.location}</TableCell>
-                <TableCell>₦{listing.price.toLocaleString()}</TableCell>
+                <TableCell className="font-medium">{listing.title}<br/><span className="text-sm text-muted-foreground">{listing.location} | ₦{listing.price.toLocaleString()}</span></TableCell>
                 <TableCell>
-                  {listing.verification ? (
-                    <div className="flex items-center gap-2">
-                      <a href={listing.verification.utilityBillUrl} target="_blank" rel="noopener noreferrer">
-                        <Button variant="outline" size="sm"><FileText className="mr-2 h-4 w-4" /> Bill</Button>
-                      </a>
-                       <a href={listing.verification.identityCardUrl} target="_blank" rel="noopener noreferrer">
-                        <Button variant="outline" size="sm"><User className="mr-2 h-4 w-4" /> ID</Button>
-                      </a>
-                    </div>
-                  ) : <Badge variant="secondary">No Docs</Badge>}
+                   {isPaymentReview ? <Badge>Payment</Badge> : <Badge variant="secondary">New Listing</Badge>}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    {listing.verification && (
+                        <>
+                        <a href={listing.verification.utilityBillUrl} target="_blank" rel="noopener noreferrer">
+                            <Button variant="outline" size="sm"><FileText className="mr-2 h-4 w-4" /> Bill</Button>
+                        </a>
+                        <a href={listing.verification.identityCardUrl} target="_blank" rel="noopener noreferrer">
+                            <Button variant="outline" size="sm"><User className="mr-2 h-4 w-4" /> ID</Button>
+                        </a>
+                        </>
+                    )}
+                    {isPaymentReview && payments[listing.id] && (
+                         <a href={payments[listing.id].receiptUrl} target="_blank" rel="noopener noreferrer">
+                            <Button variant="outline" size="sm" className="text-primary border-primary"><Banknote className="mr-2 h-4 w-4" /> Receipt</Button>
+                        </a>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="text-right">
                   {updatingId === listing.id ? (
                      <Loader2 className="h-5 w-5 animate-spin ml-auto" />
                   ) : (
                     <div className="flex justify-end gap-2">
-                      <Button size="icon" variant="ghost" className="text-green-500 hover:text-green-600" onClick={() => handleApprove(listing.id)}>
+                      <Button size="icon" variant="ghost" className="text-green-500 hover:text-green-600" onClick={() => handleApprove(listing.id, isPaymentReview)}>
                         <Check className="h-4 w-4" />
                       </Button>
                       <AlertDialog>
@@ -185,12 +255,17 @@ export function AdminDashboard() {
                             <AlertDialogHeader>
                             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                             <AlertDialogDescription>
-                                This action cannot be undone. This will permanently delete the listing.
+                                {isPaymentReview 
+                                ? "This will reject the payment and make the listing available again."
+                                : "This will permanently delete the new listing submission."
+                                }
                             </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDelete(listing)}>Delete</AlertDialogAction>
+                            <AlertDialogAction onClick={() => handleReject(listing, isPaymentReview)}>
+                                {isPaymentReview ? 'Reject Payment' : 'Delete Listing'}
+                            </AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
@@ -198,11 +273,11 @@ export function AdminDashboard() {
                   )}
                 </TableCell>
               </TableRow>
-            ))
+            )})
           ) : (
             <TableRow>
-              <TableCell colSpan={6} className="h-24 text-center">
-                No pending listings.
+              <TableCell colSpan={5} className="h-24 text-center">
+                No pending items for review.
               </TableCell>
             </TableRow>
           )}
@@ -211,3 +286,5 @@ export function AdminDashboard() {
     </div>
   );
 }
+
+    

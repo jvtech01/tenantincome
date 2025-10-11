@@ -39,4 +39,7 @@ export type Payment = {
   amount: number;
   receiptUrl: string;
   createdAt: Timestamp;
+  status: 'pending_confirmation' | 'confirmed' | 'rejected';
 };
+
+    
