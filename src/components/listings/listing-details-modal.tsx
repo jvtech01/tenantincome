@@ -22,6 +22,7 @@ import type { Listing } from '@/lib/types';
 import { MapPin, Banknote, Zap, Droplets, Landmark, Milestone } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { AuthModal } from '../auth/auth-modal';
+import { useRouter } from 'next/navigation';
 
 interface ListingDetailsModalProps {
   isOpen: boolean;
@@ -51,8 +52,13 @@ const renderFacilityIcon = (facility: string) => {
 };
 
 
-const ReservationButton = ({ listing }: { listing: Listing }) => {
+const RentButton = ({ listing }: { listing: Listing }) => {
     const { user } = useAuth();
+    const router = useRouter();
+
+    const handleRentNow = () => {
+        router.push(`/payment/${listing.id}`);
+    }
 
     if (listing.status === 'sold') {
       return <Button disabled variant="secondary" className="w-full mt-4">Rented</Button>;
@@ -60,15 +66,15 @@ const ReservationButton = ({ listing }: { listing: Listing }) => {
     
     if (user) {
         return (
-            <Button asChild className="w-full mt-4">
-              <a href={`mailto:jvtech.empire@gmail.com?subject=Reservation Inquiry for: ${listing.title}`}>Request Reservation</a>
+            <Button onClick={handleRentNow} className="w-full mt-4">
+              Rent Now
             </Button>
         );
     }
 
     return (
         <AuthModal>
-            <Button className="w-full mt-4">Request Reservation</Button>
+            <Button className="w-full mt-4">Rent Now</Button>
         </AuthModal>
     );
 };
@@ -149,7 +155,7 @@ export function ListingDetailsModal({ isOpen, onOpenChange, listing }: ListingDe
                     </div>
                 </div>
 
-                <ReservationButton listing={listing} />
+                <RentButton listing={listing} />
             </div>
         </div>
       </DialogContent>

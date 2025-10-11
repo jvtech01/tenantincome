@@ -13,7 +13,7 @@ import { PaymentBreakdownChart } from './payment-breakdown-chart';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { addDoc, collection, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, doc, runTransaction, getDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase/config';
 import { AuthModal } from '../auth/auth-modal';
@@ -52,54 +52,55 @@ export function PaymentPageClient({ listing }: PaymentPageClientProps) {
 
         setIsSubmitting(true);
         try {
-            // 1. Upload receipt
-            const receiptRef = ref(storage, `receipts/${user.uid}/${Date.now()}_${receiptFile.name}`);
-            await uploadBytes(receiptRef, receiptFile);
-            const receiptUrl = await getDownloadURL(receiptRef);
-
-            const paymentData = {
-                listingId: listing.id,
-                userId: user.uid,
-                amount: totalPrice,
-                receiptUrl,
-                createdAt: serverTimestamp(),
-            };
-
-            // 2. Create payment record
-            addDoc(collection(db, 'payments'), paymentData)
-                .catch(error => {
-                    const permissionError = new FirestorePermissionError({
-                        path: 'payments',
-                        operation: 'create',
-                        requestResourceData: paymentData
-                    });
-                    errorEmitter.emit('permission-error', permissionError);
-                    throw error;
-                });
-
-            // 3. Update listing status to 'sold'
             const listingRef = doc(db, 'listings', listing.id);
-            const listingUpdateData = {
-                status: 'sold',
-                soldAt: serverTimestamp(),
-            };
-            updateDoc(listingRef, listingUpdateData)
-                .catch(error => {
-                    const permissionError = new FirestorePermissionError({
-                        path: `listings/${listing.id}`,
-                        operation: 'update',
-                        requestResourceData: listingUpdateData
-                    });
-                    errorEmitter.emit('permission-error', permissionError);
-                    throw error;
-                });
+
+            // Run a transaction to prevent double-booking
+            await runTransaction(db, async (transaction) => {
+                const listingDoc = await transaction.get(listingRef);
+                if (!listingDoc.exists()) {
+                    throw new Error("Listing does not exist!");
+                }
+                const currentListingData = listingDoc.data();
+                if (currentListingData.status === 'sold') {
+                    throw new Error('This property has already been rented.');
+                }
+                
+                // 1. Upload receipt (do this outside transaction if it's slow, but for now it's ok)
+                const receiptRef = ref(storage, `receipts/${user.uid}/${Date.now()}_${receiptFile.name}`);
+                await uploadBytes(receiptRef, receiptFile);
+                const receiptUrl = await getDownloadURL(receiptRef);
+
+                const paymentData = {
+                    listingId: listing.id,
+                    userId: user.uid,
+                    amount: totalPrice,
+                    receiptUrl,
+                    createdAt: serverTimestamp(),
+                };
+
+                // 2. Create payment record
+                const paymentRef = doc(collection(db, 'payments'));
+                transaction.set(paymentRef, paymentData);
+
+                // 3. Update listing status to 'sold'
+                 const listingUpdateData = {
+                    status: 'sold',
+                    soldAt: serverTimestamp(),
+                };
+                transaction.update(listingRef, listingUpdateData);
+            });
+
 
             toast({ title: 'Payment Confirmed!', description: 'Your payment is being processed. Thank you!' });
             router.push('/');
 
-        } catch (error) {
-            console.error('Payment confirmation error:', error);
-            toast({ title: 'Submission Failed', description: 'Could not confirm payment. Please try again.', variant: 'destructive' });
+        } catch (error: any) {
+            console.error('Payment submission error:', error);
+            if (error.message.includes('already been rented')) {
+                 toast({ title: 'Property Unavailable', description: 'Sorry, this property was just rented by someone else.', variant: 'destructive' });
+            } else {
+                toast({ title: 'Submission Failed', description: 'Could not confirm payment. Please try again.', variant: 'destructive' });
+            }
         } finally {
             setIsSubmitting(false);
         }
