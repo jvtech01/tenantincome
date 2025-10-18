@@ -1,70 +1,223 @@
 {
   "entities": {
-    "UserProfile": {
-      "title": "User Profile",
-      "description": "Represents a user's profile information.",
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
       "type": "object",
+      "description": "Represents a user of the JVHouzin application.",
       "properties": {
-        "uid": { "type": "string", "description": "The user's unique ID from Firebase Auth." },
-        "email": { "type": "string", "format": "email", "description": "The user's email address." },
-        "displayName": { "type": "string", "description": "The user's display name." },
-        "photoURL": { "type": "string", "format": "uri", "description": "URL of the user's profile picture." },
-        "phoneNumber": { "type": "string", "description": "The user's phone number." },
-        "isAdmin": { "type": "boolean", "description": "Flag to indicate if the user is an admin." }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user.",
+          "format": "uuid"
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user.",
+          "format": "email"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Display name of the user."
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "URL of the user's profile picture.",
+          "format": "uri"
+        },
+        "isAdmin": {
+          "type": "boolean",
+          "description": "Indicates if the user is an administrator."
+        }
       },
-      "required": ["uid", "email", "displayName", "phoneNumber"]
+      "required": [
+        "id",
+        "email",
+        "displayName"
+      ]
     },
     "Listing": {
-      "title": "Property Listing",
-      "description": "Represents a property listing submitted by a user.",
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Listing",
       "type": "object",
+      "description": "Represents a property listing on JVHouzin.",
       "properties": {
-        "title": { "type": "string" },
-        "description": { "type": "string" },
-        "location": { "type": "string" },
-        "address": { "type": "string" },
-        "type": { "type": "string", "enum": ["Apartment", "Shared", "House", "Villa"] },
-        "price": { "type": "number" },
-        "imageUrls": { "type": "array", "items": { "type": "string", "format": "uri" } },
-        "imageHint": { "type": "string" },
-        "facilities": { "type": "array", "items": { "type": "string" } },
-        "ownerId": { "type": "string", "description": "UID of the user who owns the listing." },
-        "status": { "type": "string", "enum": ["pending", "approved", "sold"] },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "soldAt": { "type": "string", "format": "date-time" }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the listing."
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the listing."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the property."
+        },
+        "location": {
+          "type": "string",
+          "description": "Location of the property."
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of property (e.g., Apartment, Shared)."
+        },
+        "price": {
+          "type": "number",
+          "description": "Price of the property."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL of the property's image.",
+          "format": "uri"
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the listing (e.g., pending, approved, sold)."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Listing)"
+        },
+        "dateCreated": {
+          "type": "string",
+          "description": "Date and time the listing was created.",
+          "format": "date-time"
+        }
       },
-      "required": ["title", "location", "address", "type", "price", "imageUrls", "ownerId", "status", "createdAt"]
+      "required": [
+        "id",
+        "title",
+        "description",
+        "location",
+        "type",
+        "price",
+        "imageUrl",
+        "status",
+        "userId",
+        "dateCreated"
+      ]
     },
     "Payment": {
-      "title": "Payment Record",
-      "description": "Represents a payment transaction for a listing.",
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Payment",
       "type": "object",
+      "description": "Represents a payment record for a property listing.",
       "properties": {
-        "listingId": { "type": "string" },
-        "userId": { "type": "string" },
-        "amount": { "type": "number" },
-        "receiptUrl": { "type": "string", "format": "uri" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "status": { "type": "string", "enum": ["pending_confirmation", "confirmed", "rejected"] }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the payment record."
+        },
+        "listingId": {
+          "type": "string",
+          "description": "Reference to Listing. (Relationship: Listing 1:N Payment)"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Payment)"
+        },
+        "amount": {
+          "type": "number",
+          "description": "Amount paid."
+        },
+        "receiptUrl": {
+          "type": "string",
+          "description": "URL of the payment receipt.",
+          "format": "uri"
+        },
+        "paymentDate": {
+          "type": "string",
+          "description": "Date and time of the payment.",
+          "format": "date-time"
+        }
       },
-      "required": ["listingId", "userId", "amount", "receiptUrl", "createdAt", "status"]
+      "required": [
+        "id",
+        "listingId",
+        "userId",
+        "amount",
+        "receiptUrl",
+        "paymentDate"
+      ]
     }
   },
   "auth": {
-    "providers": ["google.com"]
+    "providers": [
+      "password",
+      "anonymous"
+    ]
   },
   "firestore": {
-    "/users/{userId}": {
-      "schema": { "$ref": "#/entities/UserProfile" },
-      "description": "Stores public profiles for all users."
-    },
-    "/listings/{listingId}": {
-      "schema": { "$ref": "#/entities/Listing" },
-      "description": "Stores all property listings."
-    },
-    "/payments/{paymentId}": {
-      "schema": { "$ref": "#/entities/Payment" },
-      "description": "Stores records of all payments made."
-    }
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles. Uses path-based ownership for private user data.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/listings/{listingId}",
+        "definition": {
+          "entityName": "Listing",
+          "schema": {
+            "$ref": "#/backend/entities/Listing"
+          },
+          "description": "Stores property listings. Includes 'userId' for authorization independence.",
+          "params": [
+            {
+              "name": "listingId",
+              "description": "The unique identifier of the listing."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/listings/{listingId}/payments/{paymentId}",
+        "definition": {
+          "entityName": "Payment",
+          "schema": {
+            "$ref": "#/backend/entities/Payment"
+          },
+          "description": "Stores payment records for each listing. Includes denormalized 'userId' from listing for authorization independence.",
+          "params": [
+            {
+              "name": "listingId",
+              "description": "The unique identifier of the listing."
+            },
+            {
+              "name": "paymentId",
+              "description": "The unique identifier of the payment."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_admin/{userId}",
+        "definition": {
+          "entityName": "admin",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Collection to store admin roles. Existence of document implies admin access.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to support the JVHouzin application, focusing on property listings, user management, and payment processing. The structure prioritizes authorization independence and aims to create easily maintainable security rules. User data is stored in a dedicated collection, while listings are organized under a top-level `listings` collection with the `userId` denormalized for security rules. Payments are stored in a subcollection of each `listing` with `userId` denormalized.  The `roles_admin` collection enables simple admin role management.\n\n**Authorization Independence (CRITICAL):** The design avoids hierarchical authorization dependencies (`get()`). Instead, authorization context (like `userId`) is denormalized into child documents. This strategy enables atomic operations (transactions/batches) and simplifies debugging.\n\n**QAPs (Rules are not Filters):** The structure enables secure `list` operations using Structural Segregation.  Each collection has a homogeneous security posture.\n\n**Invariants:** The structure supports the integrity of ownership, timestamps, and denormalized data by leveraging path-based ownership (`/users/{userId}/...`) and denormalizing key authorization data (like `userId` in `listings`)."
   }
 }
