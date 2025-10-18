@@ -45,8 +45,8 @@ const verificationSchema = z.object({
   listingReason: z.enum(['moving_out', 'finding_flatmate'], {
     required_error: 'You must select a reason for listing.',
   }),
-  utilityBill: z.instanceof(File, { message: 'A recent utility bill is required.' }),
-  identityCard: z.instanceof(File, { message: 'Your NIN slip or Voter\'s Card is required.' }),
+  utilityBill: z.instanceof(File).refine(file => file, 'A recent utility bill is required.'),
+  identityCard: z.instanceof(File).refine(file => file, "Your NIN slip or Voter's Card is required."),
 });
 
 const listingSchema = z.object({
@@ -114,7 +114,6 @@ export function ListingForm() {
     setIsSubmitting(true);
 
     try {
-      // 1. Upload verification documents
       const utilityBillRef = ref(storage, `verification/${user.uid}/utilityBill_${Date.now()}`);
       const identityCardRef = ref(storage, `verification/${user.uid}/identityCard_${Date.now()}`);
       
@@ -123,7 +122,6 @@ export function ListingForm() {
         uploadBytes(identityCardRef, verificationData.identityCard).then(snapshot => getDownloadURL(snapshot.ref)),
       ]);
       
-      // 2. Upload listing images
       const imageUrls = await Promise.all(
         data.images.map(async (image) => {
           const imageRef = ref(storage, `listings/${user.uid}/${Date.now()}_${image.name}`);
@@ -135,7 +133,6 @@ export function ListingForm() {
       const facilitiesArray = data.facilities.split(',').map(f => f.trim()).filter(f => f);
 
       const listingData = {
-        // Listing details
         ...data,
         type: verificationData.listingReason === 'finding_flatmate' ? 'Shared' : data.type,
         imageUrls,
@@ -144,26 +141,23 @@ export function ListingForm() {
         ownerId: user.uid,
         status: 'pending',
         createdAt: serverTimestamp(),
-        // Verification details
         verification: {
           utilityBillUrl,
           identityCardUrl,
           listingReason: verificationData.listingReason,
         }
       };
-
-      // 3. Create listing document in Firestore
-      const docRef = await addDoc(collection(db, 'listings'), listingData);
       
-      // Error handling for Firestore write
-      docRef.catch(error => {
+      delete (listingData as any).images;
+
+      await addDoc(collection(db, 'listings'), listingData).catch(error => {
         const permissionError = new FirestorePermissionError({
           path: 'listings',
           operation: 'create',
           requestResourceData: listingData,
         });
         errorEmitter.emit('permission-error', permissionError);
-        throw error;
+        throw error; // Re-throw to be caught by outer catch block
       });
 
       toast({
@@ -177,11 +171,14 @@ export function ListingForm() {
 
     } catch (error) {
       console.error('Error creating listing:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to create listing. Please try again.',
-        variant: 'destructive',
-      });
+      // Don't show a generic toast if it's a permission error, as it's handled globally
+      if (!(error instanceof FirestorePermissionError)) {
+          toast({
+            title: 'Error',
+            description: 'Failed to create listing. Please try again.',
+            variant: 'destructive',
+          });
+      }
     } finally {
       setIsSubmitting(false);
     }

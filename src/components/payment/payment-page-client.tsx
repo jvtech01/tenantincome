@@ -54,19 +54,16 @@ export function PaymentPageClient({ listing }: PaymentPageClientProps) {
         try {
             const listingRef = doc(db, 'listings', listing.id);
 
-            // Use a transaction to ensure atomicity
             await runTransaction(db, async (transaction) => {
                 const listingDoc = await transaction.get(listingRef);
                 if (!listingDoc.exists() || listingDoc.data().status !== 'approved') {
                     throw new Error('This property is not available for rent.');
                 }
 
-                // 1. Upload receipt
                 const receiptRef = ref(storage, `receipts/${user.uid}/${Date.now()}_${receiptFile.name}`);
                 const receiptSnapshot = await uploadBytes(receiptRef, receiptFile);
                 const receiptUrl = await getDownloadURL(receiptSnapshot.ref);
 
-                // 2. Create payment record
                 const paymentData = {
                     listingId: listing.id,
                     userId: user.uid,
@@ -78,18 +75,9 @@ export function PaymentPageClient({ listing }: PaymentPageClientProps) {
                 const paymentRef = doc(collection(db, 'payments'));
                 transaction.set(paymentRef, paymentData);
 
-                // 3. Update listing status to 'pending' to reserve it
                 const listingUpdateData = { status: 'pending' };
                 transaction.update(listingRef, listingUpdateData);
-            }).catch(error => {
-                 const permissionError = new FirestorePermissionError({
-                    path: `listings/${listing.id}`,
-                    operation: 'update',
-                });
-                errorEmitter.emit('permission-error', permissionError);
-                throw error;
             });
-
 
             toast({ 
                 title: 'Payment Submitted!', 
@@ -99,7 +87,9 @@ export function PaymentPageClient({ listing }: PaymentPageClientProps) {
 
         } catch (error: any) {
             console.error('Payment submission error:', error);
-            if (error.message.includes('not available')) {
+             if (error instanceof FirestorePermissionError) {
+                errorEmitter.emit('permission-error', error);
+             } else if (error.message.includes('not available')) {
                  toast({ title: 'Property Unavailable', description: 'Sorry, this property was just rented by someone else.', variant: 'destructive' });
             } else {
                 toast({ title: 'Submission Failed', description: 'Could not submit payment for review. Please try again.', variant: 'destructive' });
@@ -167,5 +157,3 @@ export function PaymentPageClient({ listing }: PaymentPageClientProps) {
         </div>
     );
 }
-
-    

@@ -18,7 +18,7 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
-const adminEmails = process.env.NEXT_PUBLIC_FIREBASE_ADMIN_EMAILS?.split(',') || [];
+const adminEmails = (process.env.NEXT_PUBLIC_FIREBASE_ADMIN_EMAILS || '').split(',');
 
 
 export { app, auth, db, storage, adminEmails };

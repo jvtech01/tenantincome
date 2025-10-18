@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -60,15 +59,17 @@ export function AdminDashboard() {
       setPendingListings(listingsData);
       
       if (listingsData.length > 0) {
-        const listingIds = listingsData.map(l => l.id);
-        const paymentsQuery = query(collection(db, 'payments'), where('listingId', 'in', listingIds), where('status', '==', 'pending_confirmation'));
-        const paymentsSnapshot = await getDocs(paymentsQuery);
-        const paymentsData: Record<string, Payment> = {};
-        paymentsSnapshot.forEach(doc => {
-            const payment = {id: doc.id, ...doc.data()} as Payment;
-            paymentsData[payment.listingId] = payment;
-        });
-        setPayments(paymentsData);
+        const listingIds = listingsData.map(l => l.id).filter(id => id);
+        if (listingIds.length > 0) {
+            const paymentsQuery = query(collection(db, 'payments'), where('listingId', 'in', listingIds), where('status', '==', 'pending_confirmation'));
+            const paymentsSnapshot = await getDocs(paymentsQuery);
+            const paymentsData: Record<string, Payment> = {};
+            paymentsSnapshot.forEach(doc => {
+                const payment = {id: doc.id, ...doc.data()} as Payment;
+                paymentsData[payment.listingId] = payment;
+            });
+            setPayments(paymentsData);
+        }
       }
       
       setLoading(false);
@@ -86,10 +87,13 @@ export function AdminDashboard() {
 
   const handleApprove = async (id: string, isPaymentApproval: boolean) => {
     setUpdatingId(id);
+    const listingRef = doc(db, 'listings', id);
     try {
-      const listingRef = doc(db, 'listings', id);
       const newStatus = isPaymentApproval ? 'sold' : 'approved';
-      const updateData = { status: newStatus, ...(isPaymentApproval && { soldAt: new Date() }) };
+      const updateData: { status: string; soldAt?: Date } = { status: newStatus };
+       if (isPaymentApproval) {
+        updateData.soldAt = new Date();
+      }
       
       const batch = writeBatch(db);
       batch.update(listingRef, updateData);
@@ -99,21 +103,18 @@ export function AdminDashboard() {
         batch.update(paymentRef, { status: 'confirmed' });
       }
 
-      await batch.commit()
-        .catch(error => {
-            const permissionError = new FirestorePermissionError({
-                path: `listings/${id}`,
-                operation: 'update',
-                requestResourceData: updateData,
-            });
-            errorEmitter.emit('permission-error', permissionError);
-            throw error;
-        });
+      await batch.commit();
 
       toast({ title: 'Success', description: `Listing ${newStatus}.` });
     } catch (error) {
-      toast({ title: 'Error', description: `Failed to approve.`, variant: 'destructive' });
-      console.error(error);
+        const permissionError = new FirestorePermissionError({
+            path: listingRef.path,
+            operation: 'update',
+            requestResourceData: { status: isPaymentApproval ? 'sold' : 'approved' },
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        toast({ title: 'Error', description: `Failed to approve.`, variant: 'destructive' });
+        console.error(error);
     } finally {
         setUpdatingId(null);
     }
@@ -125,25 +126,28 @@ export function AdminDashboard() {
 
     try {
         if(isPaymentRejection) {
-            // Revert listing to 'approved' so others can rent it
             const batch = writeBatch(db);
             batch.update(listingRef, { status: 'approved' });
 
             if (payments[listing.id]) {
                 const paymentRef = doc(db, 'payments', payments[listing.id].id);
                 batch.update(paymentRef, { status: 'rejected' });
-                // We don't delete the receipt so there's a record
             }
             await batch.commit();
             toast({ title: 'Success', description: 'Payment rejected. Listing is available again.' });
 
         } else {
-             // This is a rejection of a new listing, set status to 'rejected'
-             // We don't delete files, so the user can see why it was rejected and resubmit if needed
             await updateDoc(listingRef, { status: 'rejected' });
             toast({ title: 'Success', description: 'Listing has been rejected.' });
         }
     } catch(error) {
+        const operation = 'update';
+        const permissionError = new FirestorePermissionError({
+            path: listingRef.path,
+            operation: operation,
+            requestResourceData: { status: isPaymentRejection ? 'approved' : 'rejected' },
+        });
+        errorEmitter.emit('permission-error', permissionError);
          toast({ title: 'Error', description: 'Failed to reject.', variant: 'destructive' });
          console.error(error);
     } finally {

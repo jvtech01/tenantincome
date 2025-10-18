@@ -1,5 +1,8 @@
+'use client';
+import { FirestorePermissionError } from './errors';
+
 type Events = {
-  'permission-error': (error: Error) => void;
+  'permission-error': (error: FirestorePermissionError) => void;
 };
 
 class EventEmitter<T extends Record<string, (...args: any[]) => void>> {
@@ -10,6 +13,13 @@ class EventEmitter<T extends Record<string, (...args: any[]) => void>> {
       this.listeners[eventName] = [];
     }
     this.listeners[eventName]!.push(listener);
+  }
+
+  off<K extends keyof T>(eventName: K, listener: T[K]): void {
+    const eventListeners = this.listeners[eventName];
+    if (eventListeners) {
+      this.listeners[eventName] = eventListeners.filter(l => l !== listener);
+    }
   }
 
   emit<K extends keyof T>(eventName: K, ...args: Parameters<T[K]>): void {
