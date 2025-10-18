@@ -28,12 +28,17 @@
         "isAdmin": {
           "type": "boolean",
           "description": "Indicates if the user is an administrator."
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "The user's phone number."
         }
       },
       "required": [
         "id",
         "email",
-        "displayName"
+        "displayName",
+        "phoneNumber"
       ]
     },
     "Listing": {
@@ -143,8 +148,7 @@
   },
   "auth": {
     "providers": [
-      "password",
-      "anonymous"
+      "password"
     ]
   },
   "firestore": {
