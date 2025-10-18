@@ -8,12 +8,12 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Separator } from '../ui/separator';
-import { Banknote, Building, Calendar, Loader2, Upload } from 'lucide-react';
+import { Banknote, Loader2, Upload } from 'lucide-react';
 import { PaymentBreakdownChart } from './payment-breakdown-chart';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { addDoc, collection, serverTimestamp, doc, runTransaction } from 'firebase/firestore';
+import { addDoc, collection, doc, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase/config';
 import { AuthModal } from '../auth/auth-modal';
@@ -31,8 +31,9 @@ export function PaymentPageClient({ listing }: PaymentPageClientProps) {
     const [receiptFile, setReceiptFile] = useState<File | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const serviceFee = listing.price * 0.10;
-    const totalPrice = listing.price + serviceFee;
+    const rentFee = listing.price;
+    const serviceFee = listing.price * 0.05; // 5% service fee
+    const totalPrice = rentFee + serviceFee;
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -77,20 +78,28 @@ export function PaymentPageClient({ listing }: PaymentPageClientProps) {
 
                 const listingUpdateData = { status: 'pending' };
                 transaction.update(listingRef, listingUpdateData);
+            }).catch(error => {
+                const permissionError = new FirestorePermissionError({
+                    path: listingRef.path,
+                    operation: 'write',
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                throw error;
             });
 
             toast({ 
                 title: 'Payment Submitted!', 
                 description: 'Your payment is awaiting admin confirmation. The listing is now reserved.' 
             });
-            router.push('/');
+            router.push('/my-listings');
 
         } catch (error: any) {
             console.error('Payment submission error:', error);
              if (error instanceof FirestorePermissionError) {
-                errorEmitter.emit('permission-error', error);
+                // This is handled by the global error listener
              } else if (error.message.includes('not available')) {
                  toast({ title: 'Property Unavailable', description: 'Sorry, this property was just rented by someone else.', variant: 'destructive' });
+                 router.push('/browse');
             } else {
                 toast({ title: 'Submission Failed', description: 'Could not submit payment for review. Please try again.', variant: 'destructive' });
             }
@@ -128,8 +137,8 @@ export function PaymentPageClient({ listing }: PaymentPageClientProps) {
                     <Separator className="my-4" />
                     <div className="space-y-2 text-sm">
                         <div className="flex justify-between"><span>Property Type:</span><span className="font-medium">{listing.type}</span></div>
-                        <div className="flex justify-between"><span>Base Rent:</span><span className="font-medium">₦{listing.price.toLocaleString()}/month</span></div>
-                        <div className="flex justify-between"><span>Service Fee (10%):</span><span className="font-medium">₦{serviceFee.toLocaleString()}</span></div>
+                        <div className="flex justify-between"><span>Annual Rent:</span><span className="font-medium">₦{rentFee.toLocaleString()}</span></div>
+                        <div className="flex justify-between"><span>Service Fee (5%):</span><span className="font-medium">₦{serviceFee.toLocaleString()}</span></div>
                         <Separator />
                         <div className="flex justify-between text-lg font-bold"><span>Total Due:</span><span className="text-primary">₦{totalPrice.toLocaleString()}</span></div>
                     </div>
@@ -138,6 +147,9 @@ export function PaymentPageClient({ listing }: PaymentPageClientProps) {
                     <div className="w-full space-y-2">
                         <Label htmlFor="receipt">Upload Payment Receipt</Label>
                         <Input id="receipt" type="file" onChange={handleFileChange} disabled={isSubmitting || listing.status === 'sold' || listing.status === 'pending'}/>
+                         <p className="text-xs text-muted-foreground">
+                            Make a bank transfer to: JVHOUZIN, 0123456789, Globus Bank. Then upload the receipt.
+                        </p>
                     </div>
                     <AuthButton />
                 </CardFooter>

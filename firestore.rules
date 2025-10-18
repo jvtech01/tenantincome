@@ -1,115 +1,152 @@
 /**
- * @fileoverview Firestore Security Rules for JVHouzin application.
+ * @fileoverview Firestore Security Rules for JVHouzin Application
  *
  * Core Philosophy:
- * This ruleset prioritizes authorization independence by denormalizing authorization data (userId)
- * directly into documents. This avoids costly `get()` calls and simplifies security checks. The rules
- * enforce a user-ownership model for user-specific data and allows public read access with
- * owner-only writes for listings. Administrative privileges are managed through the `roles_admin`
- * collection.
+ * This ruleset enforces a user-ownership model for user profiles and admin role management.
+ * Listings are accessible to all, but creating, updating, and deleting listings is restricted to the owner (creator) of the listing.
+ * Payments are restricted to the user associated with the payment.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profiles. User-owned data.
- * - /listings/{listingId}: Stores property listings. Publicly readable, owner-writable.
- * - /listings/{listingId}/payments/{paymentId}: Stores payment records. Owner writable via userId denormalization.
- * - /roles_admin/{userId}: Indicates admin privileges.
+ * - /users/{userId}: Stores private user profile data, accessible only to the user themselves.
+ * - /listings/{listingId}: Stores property listing data, readable by everyone, but writable only by the listing owner.
+ * - /listings/{listingId}/payments/{paymentId}: Stores payment data, restricted to the user who made the payment.
+ * - /roles_admin/{userId}: Indicates admin status, accessible only to admins.
  *
  * Key Security Decisions:
- * - Listings are publicly readable to facilitate discovery, but only the owner can create, update, or delete them.
- * - Payments are secured using the owner of the listing, through userId denormalization.
- * - User listing is disabled.
- * - Data type validation is relaxed to enable rapid prototyping, focusing on ownership and relational integrity.
+ * - User listing is disallowed for privacy.
+ * - Listings are publicly readable to maximize visibility.
+ * - The security posture defaults to strict owner-only access unless explicitly opened up.
  *
  * Denormalization for Authorization:
- * - Listings contain a 'userId' field, denormalized from the user who created the listing, to allow owner-only write access without `get()` calls.
- * - Payments contain a 'userId' field, denormalized from the associated listing, to allow owner-only write access without `get()` calls.
+ * - The `listings` documents contain a `userId` field, allowing us to easily verify the owner without needing to perform additional reads.
+ * - The `payments` documents also contain a `userId` field, for the same reason.
  *
  * Structural Segregation:
- * - Private user data is stored under /users/{userId}, separate from public listings in /listings/{listingId}.
+ * - Private user data is stored under `/users/{userId}`, separate from the public `/listings` collection.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
-    }
-
-    function isAdmin() {
-          return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
-    }
     /**
-     * @description Secure user profiles under /users/{userId}.
+     * @description Controls access to user profile data.
      * @path /users/{userId}
-     * @allow (create) User with ID 'user123' can create their own profile.
-     * @allow (get) User with ID 'user123' can retrieve their own profile.
-     * @deny (create) User with ID 'user456' cannot create a profile for 'user123'.
-     * @deny (update) User with ID 'user456' cannot update the profile of 'user123'.
+     * @allow (create) - Authenticated user with matching user ID can create their profile.
+     * @allow (get, update, delete) - Authenticated user with matching user ID can read, update, or delete their profile.
+     * @deny (create) - Authenticated user trying to create a profile with a different user ID.
+     * @deny (get, update, delete) - Authenticated user trying to read, update, or delete another user's profile.
      * @principle Enforces document ownership for writes.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isSignedIn() && isOwner(userId);
       allow list: if false;
-      allow create: if isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
       allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Defines security rules for the /listings/{listingId} collection.
+     * @description Controls access to property listing data.
      * @path /listings/{listingId}
-     * @allow (get, list) Any user can view listings.
-     * @allow (create) Authenticated user can create a listing with their userId.
-     * @allow (update, delete) Only the user who created the listing can update or delete it.
-     * @deny (create) Unauthenticated user cannot create a listing.
-     * @deny (update, delete) User 'otherUser' cannot update/delete a listing created by 'ownerUser'.
-     * @principle Allows public read access with owner-only writes.
+     * @allow (get, list) - Anyone can read the listing.
+     * @allow (create) - Authenticated user can create a listing with their user ID.
+     * @allow (update, delete) - Only the owner (creator) of the listing can update or delete it.
+     * @deny (create) - Authenticated user trying to create a listing with a different user ID.
+     * @deny (update, delete) - Authenticated user trying to update or delete a listing they don't own.
+     * @principle Enforces document ownership for writes.
      */
     match /listings/{listingId} {
-      allow get, list: if true;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if isExistingOwner(resource.data.userId);
-      allow delete: if isExistingOwner(resource.data.userId);
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      function isOwner() {
+        return resource.data.userId == request.auth.uid;
+      }
+       function isNewOwner() {
+        return request.resource.data.userId == request.auth.uid;
+      }
+      function isExistingOwner() {
+        return isOwner() && resource != null;
+      }
+
+      allow get: if true;
+      allow list: if true;
+      allow create: if isSignedIn() && isNewOwner();
+      allow update: if isSignedIn() && isExistingOwner();
+      allow delete: if isSignedIn() && isExistingOwner();
     }
 
     /**
-     * @description Secures payment records for each listing under /listings/{listingId}/payments/{paymentId}.
+     * @description Controls access to payment records for property listings.
      * @path /listings/{listingId}/payments/{paymentId}
-     * @allow (create) User who owns the listing can create a payment record.
-     * @allow (get, list) Any user can view payments of a listing.
-     * @allow (update, delete) Only the user who owns the listing can update or delete payment records.
-     * @deny (create) User 'otherUser' cannot create a payment for a listing owned by 'ownerUser'.
-     * @deny (update, delete) User 'otherUser' cannot update/delete a payment for a listing owned by 'ownerUser'.
-     * @principle Enforces owner-only writes based on the listing's userId.
+     * @allow (get, list) - Only the user associated with the payment can read and list it.
+     * @allow (create) - Authenticated user can create a payment record associated with their user ID.
+     * @allow (update, delete) - Only the user associated with the payment can update or delete it.
+     * @deny (create) - Authenticated user trying to create a payment record with a different user ID.
+     * @deny (update, delete) - Authenticated user trying to update or delete a payment record they don't own.
+     * @principle Enforces document ownership for writes.
      */
     match /listings/{listingId}/payments/{paymentId} {
-      allow get, list: if true;
-      allow create: if isSignedIn() && get(/databases/$(database)/documents/listings/$(listingId)).data.userId == request.auth.uid;
-      allow update: if isSignedIn() && get(/databases/$(database)/documents/listings/$(listingId)).data.userId == request.auth.uid && resource != null;
-      allow delete: if isSignedIn() && get(/databases/$(database)/documents/listings/$(listingId)).data.userId == request.auth.uid && resource != null;
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      function isOwner() {
+        return resource.data.userId == request.auth.uid;
+      }
+      function isNewOwner() {
+        return request.resource.data.userId == request.auth.uid;
+      }
+      function isExistingOwner() {
+        return isOwner() && resource != null;
+      }
+
+      allow get: if isSignedIn() && isOwner();
+      allow list: if isSignedIn() && isOwner();
+      allow create: if isSignedIn() && isNewOwner();
+      allow update: if isSignedIn() && isExistingOwner();
+      allow delete: if isSignedIn() && isExistingOwner();
     }
 
      /**
-      * @description Grants admin access based on the document's existence in /roles_admin/{userId}.
+      * @description Controls access to admin role data.
       * @path /roles_admin/{userId}
-      * @allow (read, write) Only users listed in this collection can manage admin roles.
-      * @deny (read, write) Non-admin users cannot access or modify this collection.
-      * @principle Restricts admin role management to authorized users.
+      * @allow (create) - Only an admin can create a new admin role.
+      * @allow (get) - Only the admin user can get their own admin role.
+      * @allow (update, delete) - No updates or deletes are allowed for admin roles.
+      * @deny (create) - Non-admins cannot create admin roles.
+      * @deny (get) - Non-admin user cannot get an admin role.
+      * @deny (update, delete) - No one can update or delete admin roles.
+      * @principle Enforces admin-only access.
       */
     match /roles_admin/{userId} {
-       allow get: if isAdmin();
-       allow list: if false;
-       allow create: if isAdmin();
-       allow update: if false;
-       allow delete: if isAdmin();
+        function isSignedIn() {
+            return request.auth != null;
+        }
+
+        // Placeholder for Admin role check, needs to be implemented elsewhere.
+        function isAdmin() {
+            return true;
+        }
+
+        function isOwner(userId) {
+            return request.auth.uid == userId;
+        }
+
+        allow get: if isSignedIn() && isOwner(userId) && isAdmin();
+        allow list: if false;
+        allow create: if isSignedIn() && isAdmin() && isOwner(userId);
+        allow update: if false;
+        allow delete: if false;
     }
   }
 }

@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import {
   Dialog,
   DialogContent,
@@ -18,12 +19,13 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import type { Listing, UserProfile } from '@/lib/types';
-import { MapPin, Banknote, Zap, Droplets, Landmark, Milestone, User, Phone } from 'lucide-react';
+import type { Listing } from '@/lib/types';
+import { MapPin, Banknote, Zap, Droplets, Milestone, User, Phone } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { AuthModal } from '../auth/auth-modal';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc } from 'firebase/firestore';
+import { useDoc } from '@/hooks/use-doc';
+import { doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { Skeleton } from '../ui/skeleton';
 
@@ -50,7 +52,7 @@ const facilityIcons: { [key: string]: React.ElementType } = {
 };
 
 const renderFacilityIcon = (facility: string) => {
-    const Icon = facilityIcons[facility] || Landmark;
+    const Icon = facilityIcons[facility] || Zap;
     return <Icon className="h-4 w-4" />;
 };
 
@@ -68,6 +70,9 @@ const RentButton = ({ listing }: { listing: Listing }) => {
     }
     
     if (user) {
+        if (user.uid === listing.ownerId) {
+            return <Button disabled variant="secondary" className="w-full mt-4">This is your listing</Button>;
+        }
         return (
             <Button onClick={handleRentNow} className="w-full mt-4">
               Rent Now
@@ -83,46 +88,22 @@ const RentButton = ({ listing }: { listing: Listing }) => {
 };
 
 const OwnerInfo = ({ ownerId }: { ownerId: string }) => {
-    const [owner, setOwner] = useState<UserProfile | null>(null);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        async function fetchOwner() {
-            if (!ownerId || ownerId === 'placeholder') {
-                 setOwner({
-                    uid: 'placeholder',
-                    displayName: 'JVHOUZIN Staff',
-                    email: 'info@jvhouzin.com',
-                    photoURL: '',
-                    phoneNumber: '08012345678'
-                });
-                setLoading(false);
-                return;
-            }
-            try {
-                const ownerDoc = await getDoc(doc(db, 'users', ownerId));
-                if (ownerDoc.exists()) {
-                    setOwner(ownerDoc.data() as UserProfile);
-                }
-            } catch (error) {
-                console.error("Failed to fetch owner details:", error);
-            } finally {
-                setLoading(false);
-            }
-        }
-        fetchOwner();
-    }, [ownerId]);
-
+    const ownerRef = ownerId !== 'placeholder' ? doc(db, 'users', ownerId) : null;
+    const { data: owner, loading } = useDoc(ownerRef);
+    
     if (loading) {
         return (
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
                 <Skeleton className="h-4 w-32" />
                 <Skeleton className="h-4 w-24" />
             </div>
         )
     }
+    
+    const displayName = ownerId === 'placeholder' ? 'JVHOUZIN Staff' : owner?.displayName;
+    const phoneNumber = ownerId === 'placeholder' ? '+1234567890' : owner?.phoneNumber;
 
-    if (!owner) {
+    if (!displayName) {
         return <p className="text-sm text-muted-foreground">Owner details not available.</p>;
     }
 
@@ -130,12 +111,16 @@ const OwnerInfo = ({ ownerId }: { ownerId: string }) => {
         <div className="space-y-2">
              <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <User className="h-4 w-4" />
-                <span>Listed by {owner.displayName}</span>
+                <span>Listed by 
+                    <Link href={`/users/${ownerId}`} className="ml-1 font-medium text-primary hover:underline">
+                        {displayName}
+                    </Link>
+                </span>
             </div>
-            {owner.phoneNumber && (
-                <a href={`tel:${owner.phoneNumber}`} className="flex items-center gap-2 text-sm text-primary hover:underline">
+            {phoneNumber && (
+                <a href={`tel:${phoneNumber}`} className="flex items-center gap-2 text-sm text-primary hover:underline">
                     <Phone className="h-4 w-4" />
-                    <span>{owner.phoneNumber}</span>
+                    <span>{phoneNumber}</span>
                 </a>
             )}
         </div>
@@ -152,7 +137,7 @@ export function ListingDetailsModal({ isOpen, onOpenChange, listing }: ListingDe
                     <CarouselContent>
                         {listing.imageUrls.map((url, index) => (
                             <CarouselItem key={index}>
-                                <div className="aspect-h-4 aspect-w-3 relative">
+                                <div className="aspect-h-1 aspect-w-1 md:aspect-h-4 md:aspect-w-3 relative">
                                     <Image
                                         src={url}
                                         alt={`${listing.title} image ${index + 1}`}
@@ -175,7 +160,7 @@ export function ListingDetailsModal({ isOpen, onOpenChange, listing }: ListingDe
                 </Carousel>
             </div>
 
-            <div className="p-6 flex flex-col">
+            <div className="p-6 flex flex-col max-h-[90vh] md:max-h-auto">
                 <DialogHeader className="mb-4">
                     <div className="flex justify-between items-start">
                         <DialogTitle className="font-headline text-2xl">{listing.title}</DialogTitle>
@@ -199,7 +184,7 @@ export function ListingDetailsModal({ isOpen, onOpenChange, listing }: ListingDe
                     </div>
 
                     <div>
-                        <h4 className="font-semibold mb-2">Facilities & Landmarks:</h4>
+                        <h4 className="font-semibold mb-2">Facilities:</h4>
                         <ul className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
                             {listing.facilities.map(facility => (
                                 <li key={facility} className="flex items-center gap-2">
@@ -217,7 +202,7 @@ export function ListingDetailsModal({ isOpen, onOpenChange, listing }: ListingDe
                     <div className="flex items-center gap-2 text-xl font-semibold text-primary">
                         <Banknote className="h-6 w-6" />
                         <span>₦{listing.price.toLocaleString()}</span>
-                        <span className="text-sm font-normal text-muted-foreground">/month</span>
+                        <span className="text-sm font-normal text-muted-foreground">/per annum</span>
                     </div>
                 </div>
 
