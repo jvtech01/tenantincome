@@ -6,6 +6,8 @@ import { db } from '@/lib/firebase/config';
 import type { Listing } from '@/lib/types';
 import { notFound } from 'next/navigation';
 
+export const dynamic = 'force-dynamic';
+
 async function getListing(id: string): Promise<Listing | null> {
     const docRef = doc(db, 'listings', id);
     const docSnap = await getDoc(docRef);
