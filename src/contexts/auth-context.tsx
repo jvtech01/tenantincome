@@ -2,7 +2,7 @@
 'use client';
 
 import { createContext, useState, useEffect, type ReactNode } from 'react';
-import { onAuthStateChanged, type User, signInWithPopup, signOut as firebaseSignOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, browserLocalPersistence, setPersistence } from 'firebase/auth';
+import { onAuthStateChanged, type User, signInWithPopup, signOut as firebaseSignOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db, adminEmails } from '@/lib/firebase/config';
 import type { UserProfile, SignupData, LoginData } from '@/lib/types';
@@ -24,41 +24,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
 
   useEffect(() => {
-    // This ensures that the user's session is persisted across browser sessions.
-    setPersistence(auth, browserLocalPersistence)
-      .then(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
-          if (firebaseUser) {
-            const userDocRef = doc(db, 'users', firebaseUser.uid);
-            const userDoc = await getDoc(userDocRef);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
+      if (firebaseUser) {
+        const userDocRef = doc(db, 'users', firebaseUser.uid);
+        const userDoc = await getDoc(userDocRef);
 
-            if (userDoc.exists()) {
-              setUser(userDoc.data() as UserProfile);
-            } else {
-              // This case might happen if a user was created via Google Sign-In before,
-              // but their Firestore doc was deleted. We can recreate it.
-              const profileData: UserProfile = {
-                uid: firebaseUser.uid,
-                email: firebaseUser.email,
-                displayName: firebaseUser.displayName || "New User",
-                photoURL: firebaseUser.photoURL,
-                phoneNumber: firebaseUser.phoneNumber || '',
-                isAdmin: adminEmails.includes(firebaseUser.email || ''),
-              };
-              await setDoc(userDocRef, profileData, { merge: true });
-              setUser(profileData);
-            }
-          } else {
-            setUser(null);
-          }
-          setLoading(false);
-        });
-        return unsubscribe;
-      })
-      .catch((error) => {
-        console.error("Error setting persistence:", error);
-        setLoading(false);
-      });
+        if (userDoc.exists()) {
+          setUser(userDoc.data() as UserProfile);
+        } else {
+          // This case might happen if a user was created via email/pass before
+          // but their Firestore doc was deleted. We can recreate it.
+          const profileData: UserProfile = {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName || "New User",
+            photoURL: firebaseUser.photoURL,
+            phoneNumber: firebaseUser.phoneNumber || '',
+            isAdmin: adminEmails.includes(firebaseUser.email || ''),
+          };
+          await setDoc(userDocRef, profileData, { merge: true });
+          setUser(profileData);
+        }
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const signUp = async (data: SignupData) => {
