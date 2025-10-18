@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -16,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/use-auth';
-import { LogOut, User as UserIcon, Building, Shield } from 'lucide-react';
+import { LogOut, User as UserIcon, Building, Shield, List } from 'lucide-react';
 import Link from 'next/link';
 
 export function UserNav() {
@@ -54,6 +55,12 @@ export function UserNav() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
+          <Link href="/my-listings">
+            <DropdownMenuItem>
+              <List className="mr-2 h-4 w-4" />
+              <span>My Listings</span>
+            </DropdownMenuItem>
+          </Link>
           <Link href="/list">
             <DropdownMenuItem>
               <Building className="mr-2 h-4 w-4" />

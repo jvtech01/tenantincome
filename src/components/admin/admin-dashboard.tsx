@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -58,7 +59,6 @@ export function AdminDashboard() {
       );
       setPendingListings(listingsData);
       
-      // Fetch related payments for these pending listings
       if (listingsData.length > 0) {
         const listingIds = listingsData.map(l => l.id);
         const paymentsQuery = query(collection(db, 'payments'), where('listingId', 'in', listingIds), where('status', '==', 'pending_confirmation'));
@@ -89,12 +89,11 @@ export function AdminDashboard() {
     try {
       const listingRef = doc(db, 'listings', id);
       const newStatus = isPaymentApproval ? 'sold' : 'approved';
-      const updateData = { status: newStatus };
+      const updateData = { status: newStatus, ...(isPaymentApproval && { soldAt: new Date() }) };
       
       const batch = writeBatch(db);
       batch.update(listingRef, updateData);
 
-      // If it's a payment approval, also update the payment status
       if(isPaymentApproval && payments[id]) {
         const paymentRef = doc(db, 'payments', payments[id].id);
         batch.update(paymentRef, { status: 'confirmed' });
@@ -113,7 +112,7 @@ export function AdminDashboard() {
 
       toast({ title: 'Success', description: `Listing ${newStatus}.` });
     } catch (error) {
-      toast({ title: 'Error', description: `Failed to approve listing.`, variant: 'destructive' });
+      toast({ title: 'Error', description: `Failed to approve.`, variant: 'destructive' });
       console.error(error);
     } finally {
         setUpdatingId(null);
@@ -122,24 +121,27 @@ export function AdminDashboard() {
   
   const handleReject = async (listing: Listing, isPaymentRejection: boolean) => {
     setUpdatingId(listing.id);
+    const listingRef = doc(db, 'listings', listing.id);
+
     try {
         if(isPaymentRejection) {
             // Revert listing to 'approved' so others can rent it
-            const listingRef = doc(db, 'listings', listing.id);
-            await updateDoc(listingRef, { status: 'approved' });
+            const batch = writeBatch(db);
+            batch.update(listingRef, { status: 'approved' });
 
-             // Optionally, delete the payment record
             if (payments[listing.id]) {
                 const paymentRef = doc(db, 'payments', payments[listing.id].id);
-                await deleteDoc(paymentRef);
-                const receiptRef = ref(storage, payments[listing.id].receiptUrl);
-                await deleteObject(receiptRef);
+                batch.update(paymentRef, { status: 'rejected' });
+                // We don't delete the receipt so there's a record
             }
+            await batch.commit();
             toast({ title: 'Success', description: 'Payment rejected. Listing is available again.' });
 
         } else {
-             // This is a rejection of a new listing, so delete everything
-            await handleDelete(listing);
+             // This is a rejection of a new listing, set status to 'rejected'
+             // We don't delete files, so the user can see why it was rejected and resubmit if needed
+            await updateDoc(listingRef, { status: 'rejected' });
+            toast({ title: 'Success', description: 'Listing has been rejected.' });
         }
     } catch(error) {
          toast({ title: 'Error', description: 'Failed to reject.', variant: 'destructive' });
@@ -149,41 +151,11 @@ export function AdminDashboard() {
     }
   }
 
-
-  const handleDelete = async (listing: Listing) => {
-      // Delete Firestore document
-      await deleteDoc(doc(db, 'listings', listing.id))
-        .catch(error => {
-            const permissionError = new FirestorePermissionError({
-                path: `listings/${listing.id}`,
-                operation: 'delete',
-            });
-            errorEmitter.emit('permission-error', permissionError);
-            throw error;
-        });
-      
-      // Delete images from Storage
-      if (listing.imageUrls && listing.imageUrls.length > 0) {
-        await Promise.all(listing.imageUrls.map(url => {
-          const imageRef = ref(storage, url);
-          return deleteObject(imageRef).catch(err => console.log(err));
-        }));
-      }
-      // Delete verification docs from Storage
-      if(listing.verification) {
-        const billRef = ref(storage, listing.verification.utilityBillUrl);
-        const idRef = ref(storage, listing.verification.identityCardUrl);
-        await Promise.all([deleteObject(billRef).catch(err => console.log(err)), deleteObject(idRef).catch(err => console.log(err))]);
-      }
-
-      toast({ title: 'Success', description: 'Listing deleted.' });
-  };
-  
   const getActionType = (listing: Listing) => {
     if (payments[listing.id]) {
-        return 'payment'; // This is a pending payment
+        return 'payment';
     }
-    return 'listing'; // This is a new listing submission
+    return 'listing';
   }
 
 
@@ -257,14 +229,14 @@ export function AdminDashboard() {
                             <AlertDialogDescription>
                                 {isPaymentReview 
                                 ? "This will reject the payment and make the listing available again."
-                                : "This will permanently delete the new listing submission."
+                                : "This will mark the new listing submission as 'Rejected'. The user will see this status in their dashboard."
                                 }
                             </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction onClick={() => handleReject(listing, isPaymentReview)}>
-                                {isPaymentReview ? 'Reject Payment' : 'Delete Listing'}
+                                {isPaymentReview ? 'Reject Payment' : 'Reject Listing'}
                             </AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
@@ -286,5 +258,3 @@ export function AdminDashboard() {
     </div>
   );
 }
-
-    

@@ -1,3 +1,4 @@
+
 import type { Timestamp } from 'firebase/firestore';
 
 export type UserProfile = {
@@ -26,7 +27,7 @@ export type Listing = {
   imageHint: string;
   facilities: string[];
   ownerId: string;
-  status: 'pending' | 'approved' | 'sold';
+  status: 'pending' | 'approved' | 'sold' | 'rejected';
   createdAt: Timestamp | Date;
   soldAt?: Timestamp | Date;
   verification?: ListingVerification;
@@ -41,5 +42,3 @@ export type Payment = {
   createdAt: Timestamp;
   status: 'pending_confirmation' | 'confirmed' | 'rejected';
 };
-
-    

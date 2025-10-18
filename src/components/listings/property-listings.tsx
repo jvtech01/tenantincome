@@ -48,8 +48,6 @@ export function PropertyListings() {
   });
 
   useEffect(() => {
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
     const q = query(
       collection(db, 'listings'),
       where('status', 'in', ['approved', 'sold']),
@@ -60,14 +58,7 @@ export function PropertyListings() {
       const listingsData = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-      } as Listing))
-      .filter(listing => {
-        if (listing.status === 'sold' && listing.soldAt) {
-          const soldAtDate = (listing.soldAt as any).toDate ? (listing.soldAt as any).toDate() : new Date(listing.soldAt);
-          return soldAtDate > twentyFourHoursAgo;
-        }
-        return true;
-      });
+      } as Listing));
       
       setFirestoreListings(listingsData);
       setLoading(false);
@@ -97,6 +88,16 @@ export function PropertyListings() {
   const filteredListings = useMemo(() => {
     return combinedListings.filter((listing) => {
       const { location, type, priceRange } = filters;
+      
+      // Filter out sold properties that were sold more than 24 hours ago
+      if (listing.status === 'sold' && listing.soldAt) {
+          const soldAtDate = (listing.soldAt as any).toDate ? (listing.soldAt as any).toDate() : new Date(listing.soldAt);
+          const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+          if (soldAtDate < twentyFourHoursAgo) {
+              return false;
+          }
+      }
+
       const priceInRange = listing.price >= priceRange[0] && (priceRange[1] === MAX_PRICE ? true : listing.price <= priceRange[1]);
       
       const locationMatch = location.trim() === '' || 
