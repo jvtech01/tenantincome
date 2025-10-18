@@ -1,3 +1,4 @@
+
 'use client';
 
 import { createContext, useState, useEffect, type ReactNode } from 'react';
@@ -72,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userDocRef = doc(db, 'users', firebaseUser.uid);
       const profileData: UserProfile = {
         uid: firebaseUser.uid,
-        email: firebaseUser.email,
+        email: data.email,
         displayName: data.name,
         photoURL: null, // No photoURL with email signup by default
         phoneNumber: data.phoneNumber,
