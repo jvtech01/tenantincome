@@ -6,6 +6,7 @@ export type UserProfile = {
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
+  phoneNumber?: string;
   isAdmin?: boolean;
 };
 
@@ -41,4 +42,16 @@ export type Payment = {
   receiptUrl: string;
   createdAt: Timestamp;
   status: 'pending_confirmation' | 'confirmed' | 'rejected';
+};
+
+export type SignupData = {
+    name: string;
+    email: string;
+    password: string;
+    phoneNumber: string;
+};
+  
+export type LoginData = {
+    email: string;
+    password: string;
 };

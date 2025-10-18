@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import {
   Dialog,
@@ -18,11 +18,14 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import type { Listing } from '@/lib/types';
-import { MapPin, Banknote, Zap, Droplets, Landmark, Milestone } from 'lucide-react';
+import type { Listing, UserProfile } from '@/lib/types';
+import { MapPin, Banknote, Zap, Droplets, Landmark, Milestone, User, Phone } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { AuthModal } from '../auth/auth-modal';
 import { useRouter } from 'next/navigation';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
+import { Skeleton } from '../ui/skeleton';
 
 interface ListingDetailsModalProps {
   isOpen: boolean;
@@ -79,6 +82,66 @@ const RentButton = ({ listing }: { listing: Listing }) => {
     );
 };
 
+const OwnerInfo = ({ ownerId }: { ownerId: string }) => {
+    const [owner, setOwner] = useState<UserProfile | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        async function fetchOwner() {
+            if (!ownerId || ownerId === 'placeholder') {
+                 setOwner({
+                    uid: 'placeholder',
+                    displayName: 'JVHOUZIN Staff',
+                    email: 'info@jvhouzin.com',
+                    photoURL: '',
+                    phoneNumber: '08012345678'
+                });
+                setLoading(false);
+                return;
+            }
+            try {
+                const ownerDoc = await getDoc(doc(db, 'users', ownerId));
+                if (ownerDoc.exists()) {
+                    setOwner(ownerDoc.data() as UserProfile);
+                }
+            } catch (error) {
+                console.error("Failed to fetch owner details:", error);
+            } finally {
+                setLoading(false);
+            }
+        }
+        fetchOwner();
+    }, [ownerId]);
+
+    if (loading) {
+        return (
+            <div className="space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-4 w-24" />
+            </div>
+        )
+    }
+
+    if (!owner) {
+        return <p className="text-sm text-muted-foreground">Owner details not available.</p>;
+    }
+
+    return (
+        <div className="space-y-2">
+             <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <User className="h-4 w-4" />
+                <span>Listed by {owner.displayName}</span>
+            </div>
+            {owner.phoneNumber && (
+                <a href={`tel:${owner.phoneNumber}`} className="flex items-center gap-2 text-sm text-primary hover:underline">
+                    <Phone className="h-4 w-4" />
+                    <span>{owner.phoneNumber}</span>
+                </a>
+            )}
+        </div>
+    )
+}
+
 export function ListingDetailsModal({ isOpen, onOpenChange, listing }: ListingDetailsModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -125,7 +188,10 @@ export function ListingDetailsModal({ isOpen, onOpenChange, listing }: ListingDe
                 </DialogHeader>
                 
                 <div className="flex-grow overflow-y-auto pr-2 space-y-4">
-                    <p className="text-sm text-muted-foreground">{listing.description}</p>
+                    
+                    <OwnerInfo ownerId={listing.ownerId} />
+                    
+                    <p className="text-sm text-muted-foreground pt-2">{listing.description}</p>
                     
                     <div>
                         <h4 className="font-semibold mb-1">Address:</h4>

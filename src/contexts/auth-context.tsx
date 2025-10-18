@@ -41,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 email: firebaseUser.email,
                 displayName: firebaseUser.displayName || "New User",
                 photoURL: firebaseUser.photoURL,
+                phoneNumber: firebaseUser.phoneNumber || '',
                 isAdmin: adminEmails.includes(firebaseUser.email || ''),
               };
               await setDoc(userDocRef, profileData, { merge: true });
@@ -74,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: firebaseUser.email,
         displayName: data.name,
         photoURL: null, // No photoURL with email signup by default
+        phoneNumber: data.phoneNumber,
         isAdmin: adminEmails.includes(data.email),
       };
       await setDoc(userDocRef, profileData);
